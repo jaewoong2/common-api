@@ -47,3 +47,6 @@ lerna-debug.log*
 *.swo
 *~
 .tmp
+
+
+.env*
