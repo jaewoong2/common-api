@@ -1,183 +1,27 @@
-# DTO Schema Registry
+# DTO Schema
 
-> ⚠️ **AI MUST UPDATE THIS FILE** when creating or modifying DTOs.
+아직 DTO가 정의되지 않았습니다. 각 모듈의 DTO를 추가할 때 아래 형식을 따릅니다.
 
-## How to Use This Document
-
-1. **Before implementing**: Check if a similar DTO exists
-2. **After implementing**: Document all fields and validations
-3. **Reuse**: Common DTOs should be in `src/common/dto/`
-
----
-
-## Common DTOs (src/common/dto/)
-
-### Pagination DTOs
-
-| DTO | File | Usage | Fields |
-|-----|------|-------|--------|
-| PageOptionsDto | pagination/page-options.dto.ts | Query params | `page: number, take: number, order: 'ASC' \| 'DESC'` |
-| PageMetaDto | pagination/page-meta.dto.ts | Response metadata | `page, take, itemCount, pageCount, hasPreviousPage, hasNextPage` |
-| PageDto\<T\> | pagination/page.dto.ts | Paginated response | `items: T[], meta: PageMetaDto` |
-
-### Base Response DTOs
-
-| DTO | File | Usage | Fields |
-|-----|------|-------|--------|
-| BaseResponseDto | response/base-response.dto.ts | Standard response | `success: boolean, data: T, timestamp: string` |
-| ErrorResponseDto | response/error-response.dto.ts | Error response | `success: false, error: { code, message, details }` |
-
----
-
-## Feature Module DTOs
-
-### Auth Module (src/modules/auth/dto/)
-
-| DTO | File | Usage | Fields | Validations |
-|-----|------|-------|--------|-------------|
-| _Add DTOs here_ | | | | |
-
-### User Module (src/modules/user/dto/)
-
-| DTO | File | Usage | Fields | Validations |
-|-----|------|-------|--------|-------------|
-| _Add DTOs here_ | | | | |
-
----
-
-## DTO Naming Conventions
-
-| Type | Pattern | Example |
-|------|---------|---------|
-| Create | `Create[Entity]Dto` | `CreateUserDto` |
-| Update | `Update[Entity]Dto` | `UpdateUserDto` |
-| Response | `[Entity]ResponseDto` | `UserResponseDto` |
-| Query/Filter | `[Entity]QueryDto` | `UserQueryDto` |
-| List Response | `[Entity]ListResponseDto` | `UserListResponseDto` |
-| Internal | `[Entity]InternalDto` | `UserInternalDto` |
-
----
-
-## Validation Decorators Reference
-
-### String Validations
-
-```typescript
-@IsString()              // Must be string
-@IsNotEmpty()            // Cannot be empty
-@MinLength(n)            // Minimum length
-@MaxLength(n)            // Maximum length
-@Matches(/regex/)        // Must match pattern
-@IsEmail()               // Valid email format
-@IsUrl()                 // Valid URL format
-@IsUUID()                // Valid UUID
-```
-
-### Number Validations
-
-```typescript
-@IsNumber()              // Must be number
-@IsInt()                 // Must be integer
-@Min(n)                  // Minimum value
-@Max(n)                  // Maximum value
-@IsPositive()            // Must be positive
-```
-
-### Other Validations
-
-```typescript
-@IsBoolean()             // Must be boolean
-@IsDate()                // Must be date
-@IsEnum(Enum)            // Must be enum value
-@IsArray()               // Must be array
-@IsOptional()            // Field is optional
-@ValidateNested()        // Validate nested objects
-@Type(() => Class)       // Transform to class
-```
-
----
-
-## DTO Template
-
-When creating new DTOs, use this structure:
-
-### Create DTO
-
-```typescript
-// create-[entity].dto.ts
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsEmail } from 'class-validator';
-
-export class Create[Entity]Dto {
-  @ApiProperty({ 
-    description: 'Field description',
-    example: 'example value' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  fieldName: string;
-}
-```
-
-### Update DTO
-
-```typescript
-// update-[entity].dto.ts
-import { PartialType, OmitType } from '@nestjs/mapped-types';
-import { Create[Entity]Dto } from './create-[entity].dto';
-
-export class Update[Entity]Dto extends PartialType(
-  OmitType(Create[Entity]Dto, ['immutableField'] as const)
-) {}
-```
-
-### Response DTO
-
-```typescript
-// [entity]-response.dto.ts
-import { ApiProperty } from '@nestjs/swagger';
-import { [Entity]Entity } from '../entities/[entity].entity';
-
-export class [Entity]ResponseDto {
-  @ApiProperty()
-  id: number;
-
-  @ApiProperty()
-  fieldName: string;
-
-  @ApiProperty()
-  createdAt: string;
-
-  static fromEntity(entity: [Entity]Entity): [Entity]ResponseDto {
-    const dto = new [Entity]ResponseDto();
-    dto.id = Number(entity.id);
-    dto.fieldName = entity.fieldName;
-    dto.createdAt = entity.createdAt.toISOString();
-    return dto;
-  }
-}
-```
-
----
-
-## Documentation Template
-
-When adding new DTOs to this file:
-
-```markdown
-### [Module] Module (src/modules/[module]/dto/)
-
-| DTO | File | Usage | Fields | Validations |
-|-----|------|-------|--------|-------------|
-| CreateXxxDto | create-xxx.dto.ts | POST /xxx | `field1: string, field2: number` | `@IsString(), @Min(0)` |
-| UpdateXxxDto | update-xxx.dto.ts | PATCH /xxx/:id | `field1?: string` | Partial of Create |
-| XxxResponseDto | xxx-response.dto.ts | Response | `id, field1, createdAt` | N/A |
-```
-
----
-
-## Changelog
-
-| Date | DTO | Change | Author |
-|------|-----|--------|--------|
-| _YYYY-MM-DD_ | _DtoName_ | _Added/Modified/Removed_ | _Name/AI_ |
+| DTO Name                | File Path                                  | Purpose                                       | Notes |
+| ----------------------- | -------------------------------------------| --------------------------------------------- | ----- |
+| `RequestMagicLinkDto`   | src/modules/auth/dto/auth.dto.ts           | Request body for magic link email             | -     |
+| `VerifyMagicLinkDto`    | src/modules/auth/dto/auth.dto.ts           | Verify magic link token                       | -     |
+| `RefreshTokenDto`       | src/modules/auth/dto/auth.dto.ts           | Refresh access token                          | -     |
+| `LogoutDto`             | src/modules/auth/dto/auth.dto.ts           | Logout via refresh token                      | refresh optional |
+| `UpdateProfileDto`      | src/modules/auth/dto/auth.dto.ts           | Update profile fields                         | nickname optional |
+| `CreditWalletDto`       | src/modules/point/dto/wallet.dto.ts        | Wallet credit request                         | requires idempotency header |
+| `DebitWalletDto`        | src/modules/point/dto/wallet.dto.ts        | Wallet debit request                          | requires idempotency header |
+| `WalletBalanceQueryDto` | src/modules/point/dto/wallet.dto.ts        | Balance query params                          | user_id |
+| `WalletLedgerQueryDto`  | src/modules/point/dto/wallet.dto.ts        | Ledger query params                           | pagination cursor/limit |
+| `CreateProductDto`      | src/modules/billing/dto/product.dto.ts     | Admin create product                          | type/name/metadata |
+| `UpdateProductDto`      | src/modules/billing/dto/product.dto.ts     | Admin update product                          | name/active/metadata |
+| `CreateOrderDto`        | src/modules/billing/dto/order.dto.ts       | Create order with wallet payment              | includes reason/ref fields |
+| `RefundOrderDto`        | src/modules/billing/dto/order.dto.ts       | Refund order request                          | idempotency key optional |
+| `CreateCallbackJobDto`  | src/modules/job/dto/job.dto.ts             | Create callback HTTP job                      | method/path/body/timeout |
+| `RunJobsDto`            | src/modules/job/dto/job.dto.ts             | Internal job runner payload                   | limit optional |
+| `SuspendReasonDto`      | src/modules/admin/dto/admin.dto.ts         | Admin suspend reason                          | reason |
+| `AdjustWalletDto`       | src/modules/admin/dto/admin.dto.ts         | Admin wallet adjust payload                   | delta with refs |
+| `RetryJobDto`           | src/modules/admin/dto/admin.dto.ts         | Admin job id payload                          | jobId |
+| `ListJobsQueryDto`      | src/modules/admin/dto/admin.dto.ts         | Admin job listing filters                     | status/limit/cursor |
+| `CreateAppDto`          | src/modules/platform/dto/app.dto.ts        | Platform create app/tenant                    | hosts/callback settings |
+| `UpdateAppDto`          | src/modules/platform/dto/app.dto.ts        | Platform update app config                    | callback updates |

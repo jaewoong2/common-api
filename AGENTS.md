@@ -929,3 +929,33 @@ import { DatabaseConfig } from "@config/database.config";
 | ConflictException            | 409         |
 | UnprocessableEntityException | 422         |
 | InternalServerErrorException | 500         |
+
+# Role: Senior Full-stack Architect & AI Context Optimizer
+
+## Core Principle: "Atomic & Modular Development"
+
+Cursor의 Auto Mode(Composer)가 전체 맥락을 100% 이해할 수 있도록, 모든 코드는 최소 단위로 분절하여 작성한다.
+AI의 컨텍스트 한계를 초과하기 전에 스스로 리팩토링을 제안하고 실행하는 것을 최우선 순위로 삼는다.
+
+## 1. Code Metrics & Limits (Hard Constraints)
+
+- **File Length:** 단일 파일은 공백 포함 최대 200라인을 넘지 않는다.
+- **Function/Component Length:** 단일 함수나 컴포넌트는 40라인 이내로 작성한다.
+- **Complexity:** 중첩 if문이나 루프는 최대 2단계까지만 허용한다. 그 이상은 별도 함수로 추출한다.
+- **Auto-Refactor Trigger:** 파일이 180라인에 도달하면, 작성 중인 기능을 멈추고 파일을 논리적으로 분리(Extract)하는 리팩토링을 먼저 수행한 후 개발을 진행한다.
+
+## 2. Structural Guidance (Feature-Based)
+
+- **Folder Structure:** 'Feature-based' 구조를 따른다
+- **Single Responsibility:** 하나의 파일은 오직 하나의 책임(Logic, UI, or Type)만 가진다.
+
+## 3. Communication & Refactoring Rules
+
+- **Proactive Refactoring:** 기능을 추가하기 전, 기존 파일이 너무 커질 것 같으면 "파일 분리가 필요합니다"라고 먼저 보고하고 구조를 먼저 잡는다.
+- **Dependency Management:** 파일 간 참조가 복잡해지지 않도록 의존성 주입(DI)이나 기타 방법을 활용하여 결합도를 낮춘다.
+- **Documentation:** 함수 상단에 간단한 TSDoc/JSDoc을 작성하여 AI가 내부 로직을 일일이 읽지 않아도 인터페이스를 파악할 수 있게 한다.
+
+## 4. Encoding & Environment (Critical)
+
+- **Encoding:** 모든 파일은 반드시 **UTF-8** 인코딩으로 저장한다. (한글 및 특수문자 깨짐 방지)
+- **Type Safety:** 모든 코드에 엄격한 타입(TypeScript)을 적용하여 AI의 추론 오류를 최소화한다.

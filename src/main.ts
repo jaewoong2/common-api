@@ -1,51 +1,30 @@
-import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { AppLogger } from './core/logger/logger.service';
 
+/**
+ * Bootstraps the Nest application for ECS/Fargate runtime.
+ */
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  // Global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter(),
+    { bufferLogs: true },
   );
 
-  // Swagger/OpenAPI setup
-  const config = new DocumentBuilder()
-    .setTitle('Common API Platform')
-    .setDescription(
-      'Multi-tenant B2B API for Identity, Wallet, Billing, and Jobs',
-    )
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addServer('https://api.{appId}.com/v1', 'App-specific tenant', {
-      appId: {
-        default: 'demo',
-        description: 'Application identifier',
-      },
-    })
-    .addServer(
-      'https://platform.api.your.com/v1',
-      'Platform super admin',
-    )
-    .build();
+  app.useLogger(app.get(AppLogger));
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  const httpAdapterHost = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new HttpExceptionFilter(httpAdapterHost));
+  app.useGlobalInterceptors(new ResponseInterceptor());
+  app.enableShutdownHooks();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api-docs', app, document);
-
-  // Start server
-  const port = process.env.PORT || 3000;
-  await app.listen(port);
-
-  console.log(`
-🚀 Common API Platform is running on: http://localhost:${port}
-📚 Swagger UI available at: http://localhost:${port}/api-docs
-  `);
+  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+  await app.listen(port, '0.0.0.0');
 }
 
 bootstrap();
