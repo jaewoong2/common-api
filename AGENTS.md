@@ -2,6 +2,44 @@
 
 This file provides guidance to Codex Code (Codex.ai/code) when working with code in this repository.
 
+## ⚠️ AI Assistant Critical Rules
+
+### Before Writing ANY Code
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  🔍 STOP! CHECK THESE FIRST BEFORE IMPLEMENTING ANYTHING               │
+├─────────────────────────────────────────────────────────────────────────┤
+│  1. Check docs/FUNCTION_REGISTRY.md - Does this function exist?        │
+│  2. Check docs/MODULE_MAP.md - Is there a module handling this?        │
+│  3. Check src/common/ - Is there a shared utility for this?            │
+│  4. Search codebase: "function name" or "similar keyword"              │
+│  5. If exists → REUSE. If not → IMPLEMENT & DOCUMENT.                  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Implementation Checklist
+
+Before implementing new code, AI MUST:
+
+- [ ] Search for existing implementations using keywords
+- [ ] Check `docs/FUNCTION_REGISTRY.md` for similar functions
+- [ ] Check `docs/MODULE_MAP.md` for responsible modules
+- [ ] Check `src/common/` for reusable utilities
+- [ ] If implementing new code → Update relevant docs/\*.md files
+
+### After Implementation Checklist
+
+After implementing new code, AI MUST:
+
+- [ ] Update `docs/FUNCTION_REGISTRY.md` with new functions
+- [ ] Update `docs/MODULE_MAP.md` if new module created
+- [ ] Update `docs/API_ENDPOINTS.md` if new endpoint created
+- [ ] Update `docs/DTO_SCHEMA.md` if new DTO created
+- [ ] Add JSDoc comments to all public methods
+
+---
+
 ## Development Commands
 
 ### Running the Application
@@ -10,141 +48,462 @@ This file provides guidance to Codex Code (Codex.ai/code) when working with code
 # Local development with hot reload
 npm run start:dev
 
+# Debug mode
+npm run start:debug
+
 # Production mode
 npm run start:prod
 
 # Docker development
 docker-compose up --build
-
-# AWS Lambda deployment (if using serverless)
-npm run deploy
 ```
 
 ### Testing
 
 ```bash
-# Run all tests (Jest)
+# Unit tests
 npm run test
 
-# Run specific test file
-npm run test -- --testPathPattern=web-search.repository.spec.ts
+# Watch mode
+npm run test:watch
 
-# Run tests with coverage
+# Coverage report
 npm run test:cov
 
-# Run e2e tests
+# E2E tests
 npm run test:e2e
+
+# Specific test file
+npm run test -- --testPathPattern=user.service.spec.ts
 ```
 
 ### Database Operations
 
 ```bash
-# The application uses PostgreSQL with TypeORM
-# Connection configured via environment variables in .env
-
 # Generate migration from entity changes
 npm run migration:generate -- src/migrations/MigrationName
 
-# Run migrations
+# Run pending migrations
 npm run migration:run
 
 # Revert last migration
 npm run migration:revert
 
-# Schema: crypto (as defined in entities)
+# Show migration status
+npm run migration:show
+
+# Sync schema (development only - NEVER in production)
+npm run schema:sync
 ```
 
-### Key Configuration
-
-- Environment variables loaded from `.env` via `@nestjs/config`
-- Database connection pooling with retry logic via TypeORM
-- CORS configured for development and production origins
-- Logging configured via NestJS Logger (AWS Lambda compatible)
-
-## Backend Performance
-
-- MUST: Use async/await for I/O operations
-- MUST: Implement database query optimization with QueryBuilder
-- SHOULD: Use caching with `@nestjs/cache-manager` for expensive operations
-- SHOULD: Implement pagination for large datasets
-- SHOULD: Monitor API response times with interceptors
-
-## TypeScript/NestJS Rules - General Principles
-
-- MUST: Enable strict mode in tsconfig.json
-- MUST: Use type annotations for all function parameters and return values
-- MUST: Use async/await for I/O operations
-- SHOULD: Use descriptive variable and function names
-- SHOULD: Keep functions small and focused
-- SHOULD: Use readonly where applicable
-
-## NestJS Specific
-
-- MUST: Use DTOs (Data Transfer Objects) with class-validator for request validation
-- MUST: Use dependency injection via constructor
-- MUST: Define proper HTTP status codes with `@HttpCode()` decorator
-- MUST: Use proper exception handling with built-in exceptions (NotFoundException, BadRequestException, etc.)
-- SHOULD: Group related endpoints in separate module files
-- SHOULD: Use `@ApiResponse()` decorators for Swagger documentation
-
-## Database & Entities
-
-- MUST: Use TypeORM with async repository pattern
-- MUST: Define separate DTOs for create/update/response operations
-- MUST: Use proper database migrations with TypeORM CLI
-- SHOULD: Use database transactions with QueryRunner for data consistency
-- SHOULD: Implement proper database indexing with `@Index()` decorator
-
-### ⚠️ CRITICAL: Entity Inheritance Rules
-
-**BEFORE creating or modifying ANY TypeORM entity, CHECK if the database table has `created_at` and `updated_at` columns!**
-
-#### Rule 1: Check Database Schema First
+### Code Quality
 
 ```bash
-# ALWAYS verify table schema before writing entity code
-psql -d your_database -c "\d crypto.table_name"
+# Lint
+npm run lint
+
+# Lint with auto-fix
+npm run lint:fix
+
+# Format with Prettier
+npm run format
+
+# Type check
+npm run typecheck
 ```
 
-#### Rule 2: Choose Correct Base Class
+---
 
-**If table HAS `created_at` and `updated_at` columns:**
+## Project Structure (NestJS Convention)
+
+```
+src/
+├── common/                    # 🔴 CHECK HERE FIRST for reusable code
+│   ├── decorators/           # Custom decorators
+│   ├── dto/                  # Shared DTOs (PageOptionsDto, etc.)
+│   ├── entities/             # Base entities (BaseEntity, etc.)
+│   ├── enums/                # Shared enums
+│   ├── exceptions/           # Custom exceptions
+│   ├── filters/              # Exception filters
+│   ├── guards/               # Auth guards
+│   ├── interceptors/         # Response interceptors
+│   ├── interfaces/           # Shared interfaces
+│   ├── pipes/                # Validation pipes
+│   └── utils/                # Utility functions
+├── config/                   # Configuration modules
+├── modules/                  # Feature modules
+│   └── [feature]/
+│       ├── dto/
+│       ├── entities/
+│       ├── repositories/
+│       ├── [feature].controller.ts
+│       ├── [feature].service.ts
+│       ├── [feature].module.ts
+│       └── [feature].controller.spec.ts
+├── app.module.ts
+└── main.ts
+
+docs/                         # 🔴 MUST UPDATE when adding features
+├── FUNCTION_REGISTRY.md      # All functions with descriptions
+├── MODULE_MAP.md             # Module responsibilities
+├── API_ENDPOINTS.md          # All API endpoints
+├── DTO_SCHEMA.md             # DTO definitions
+└── DATABASE_SCHEMA.md        # Table structures
+```
+
+---
+
+## Documentation Requirements
+
+### docs/FUNCTION_REGISTRY.md Format
+
+AI MUST update this file when creating new functions:
+
+```markdown
+# Function Registry
+
+## Common Utilities (src/common/utils/)
+
+| Function           | File         | Description          | Parameters                     | Return   | Example                     |
+| ------------------ | ------------ | -------------------- | ------------------------------ | -------- | --------------------------- |
+| `formatDate`       | date.util.ts | ISO date formatting  | `date: Date`                   | `string` | `formatDate(new Date())`    |
+| `calculatePercent` | math.util.ts | Calculate percentage | `value: number, total: number` | `number` | `calculatePercent(50, 200)` |
+
+## User Module (src/modules/user/)
+
+| Function      | File               | Description        | Parameters      | Return                     | Example                        |
+| ------------- | ------------------ | ------------------ | --------------- | -------------------------- | ------------------------------ |
+| `findByEmail` | user.repository.ts | Find user by email | `email: string` | `Promise<UserDto \| null>` | `findByEmail('test@test.com')` |
+```
+
+### docs/MODULE_MAP.md Format
+
+```markdown
+# Module Map
+
+| Module       | Path             | Responsibility            | Dependencies | Exports                        |
+| ------------ | ---------------- | ------------------------- | ------------ | ------------------------------ |
+| UserModule   | src/modules/user | User CRUD, authentication | AuthModule   | UserService                    |
+| AuthModule   | src/modules/auth | JWT, guards               | UserModule   | JwtStrategy, AuthGuard         |
+| CommonModule | src/common       | Shared utilities          | -            | All decorators, pipes, filters |
+```
+
+### docs/API_ENDPOINTS.md Format
+
+```markdown
+# API Endpoints
+
+## User Module
+
+| Method | Endpoint   | Controller     | Handler | Auth  | Description     |
+| ------ | ---------- | -------------- | ------- | ----- | --------------- |
+| GET    | /users     | UserController | findAll | JWT   | List all users  |
+| GET    | /users/:id | UserController | findOne | JWT   | Get user by ID  |
+| POST   | /users     | UserController | create  | Admin | Create new user |
+| PATCH  | /users/:id | UserController | update  | Owner | Update user     |
+| DELETE | /users/:id | UserController | remove  | Admin | Delete user     |
+```
+
+### docs/DTO_SCHEMA.md Format
+
+```markdown
+# DTO Schema Registry
+
+## User DTOs
+
+| DTO             | File                 | Usage            | Fields                                          |
+| --------------- | -------------------- | ---------------- | ----------------------------------------------- |
+| CreateUserDto   | create-user.dto.ts   | POST /users      | `name: string, email: string, password: string` |
+| UpdateUserDto   | update-user.dto.ts   | PATCH /users/:id | `name?: string, email?: string`                 |
+| UserResponseDto | user-response.dto.ts | Response         | `id, name, email, createdAt`                    |
+
+## Pagination DTOs (Common)
+
+| DTO            | File                | Usage              | Fields                                               |
+| -------------- | ------------------- | ------------------ | ---------------------------------------------------- |
+| PageOptionsDto | page-options.dto.ts | Query params       | `page: number, take: number, order: Order`           |
+| PageMetaDto    | page-meta.dto.ts    | Response meta      | `page, take, itemCount, pageCount, hasPrev, hasNext` |
+| PageDto<T>     | page.dto.ts         | Paginated response | `data: T[], meta: PageMetaDto`                       |
+```
+
+---
+
+## NestJS Best Practices
+
+### Module Organization
 
 ```typescript
-import { BaseEntity } from "./base.entity";
-import { Entity, Column } from "typeorm";
+// ✅ CORRECT - Feature module with clear boundaries
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([UserEntity]),
+    forwardRef(() => AuthModule), // Handle circular deps
+  ],
+  controllers: [UserController],
+  providers: [UserService, UserRepository],
+  exports: [UserService], // Only export what's needed
+})
+export class UserModule {}
+```
 
-@Entity({ name: "your_table", schema: "crypto" })
-export class YourEntity extends BaseEntity {
-  // ✅ CORRECT - includes timestamps
-  @Column()
-  name: string;
-  // ... your fields
+### Service Pattern
+
+```typescript
+// ✅ CORRECT - Service with proper error handling
+@Injectable()
+export class UserService {
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly eventEmitter: EventEmitter2 // For events
+  ) {}
+
+  async findOne(id: number): Promise<UserResponseDto> {
+    const user = await this.userRepository.findById(id);
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    return user;
+  }
+
+  async create(dto: CreateUserDto): Promise<UserResponseDto> {
+    // Check for existing
+    const existing = await this.userRepository.findByEmail(dto.email);
+    if (existing) {
+      throw new ConflictException("Email already exists");
+    }
+
+    const user = await this.userRepository.create(dto);
+
+    // Emit event for side effects
+    this.eventEmitter.emit("user.created", new UserCreatedEvent(user));
+
+    return user;
+  }
 }
 ```
 
-**If table DOES NOT HAVE `created_at` and `updated_at` columns:**
+### Controller Pattern
 
 ```typescript
-import { Entity, Column, PrimaryGeneratedColumn } from "typeorm";
+// ✅ CORRECT - Controller with proper decorators
+@ApiTags("users")
+@Controller("users")
+@UseGuards(JwtAuthGuard)
+export class UserController {
+  constructor(private readonly userService: UserService) {}
 
-@Entity({ name: "your_table", schema: "crypto" })
-export class YourEntity {
-  // ✅ CORRECT - no timestamps
-  /**
-   * NOTE: This entity does NOT extend BaseEntity because the database table
-   * does not have created_at/updated_at columns.
-   */
-  @PrimaryGeneratedColumn("increment", { type: "bigint" })
-  id: number;
+  @Get()
+  @ApiOperation({ summary: "Get all users" })
+  @ApiResponse({ status: 200, type: PageDto<UserResponseDto> })
+  async findAll(
+    @Query() pageOptionsDto: PageOptionsDto
+  ): Promise<PageDto<UserResponseDto>> {
+    return this.userService.findAll(pageOptionsDto);
+  }
 
-  @Column()
-  name: string;
-  // ... your fields
+  @Get(":id")
+  @ApiOperation({ summary: "Get user by ID" })
+  @ApiResponse({ status: 200, type: UserResponseDto })
+  @ApiResponse({ status: 404, description: "User not found" })
+  async findOne(
+    @Param("id", ParseIntPipe) id: number
+  ): Promise<UserResponseDto> {
+    return this.userService.findOne(id);
+  }
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @Roles(Role.ADMIN)
+  @UseGuards(RolesGuard)
+  async create(@Body() dto: CreateUserDto): Promise<UserResponseDto> {
+    return this.userService.create(dto);
+  }
+
+  @Patch(":id")
+  @UseGuards(OwnerGuard)
+  async update(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: UpdateUserDto
+  ): Promise<UserResponseDto> {
+    return this.userService.update(id, dto);
+  }
+
+  @Delete(":id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(Role.ADMIN)
+  @UseGuards(RolesGuard)
+  async remove(@Param("id", ParseIntPipe) id: number): Promise<void> {
+    await this.userService.remove(id);
+  }
 }
 ```
 
-#### Rule 3: Base Entity Definition
+### Repository Pattern
+
+```typescript
+// ✅ CORRECT - Repository returning DTOs
+@Injectable()
+export class UserRepository {
+  constructor(
+    @InjectRepository(UserEntity)
+    private readonly repo: Repository<UserEntity>
+  ) {}
+
+  async findById(id: number): Promise<UserResponseDto | null> {
+    const entity = await this.repo.findOne({ where: { id } });
+    return entity ? UserResponseDto.fromEntity(entity) : null;
+  }
+
+  async findAll(options: PageOptionsDto): Promise<PageDto<UserResponseDto>> {
+    const queryBuilder = this.repo.createQueryBuilder("user");
+
+    queryBuilder
+      .orderBy("user.createdAt", options.order)
+      .skip(options.skip)
+      .take(options.take);
+
+    const itemCount = await queryBuilder.getCount();
+    const entities = await queryBuilder.getMany();
+
+    const dtos = entities.map((e) => UserResponseDto.fromEntity(e));
+    const pageMetaDto = new PageMetaDto({ itemCount, pageOptionsDto: options });
+
+    return new PageDto(dtos, pageMetaDto);
+  }
+
+  async create(dto: CreateUserDto): Promise<UserResponseDto> {
+    const entity = this.repo.create(dto);
+    const saved = await this.repo.save(entity);
+    return UserResponseDto.fromEntity(saved);
+  }
+
+  async update(id: number, dto: UpdateUserDto): Promise<UserResponseDto> {
+    await this.repo.update(id, dto);
+    return this.findById(id);
+  }
+
+  async remove(id: number): Promise<void> {
+    await this.repo.delete(id);
+  }
+}
+```
+
+---
+
+## Common Patterns (MUST REUSE)
+
+### Pagination (src/common/dto/pagination/)
+
+```typescript
+// ✅ Already implemented - DO NOT recreate
+import { PageOptionsDto, PageMetaDto, PageDto } from '@common/dto/pagination';
+
+// Usage in repository
+async findAll(options: PageOptionsDto): Promise<PageDto<YourDto>> {
+  // ... query with skip/take
+  return new PageDto(dtos, new PageMetaDto({ itemCount, pageOptionsDto }));
+}
+
+// Usage in controller
+@Get()
+async findAll(@Query() options: PageOptionsDto): Promise<PageDto<YourDto>> {
+  return this.service.findAll(options);
+}
+```
+
+### Response Wrapper (src/common/interceptors/)
+
+```typescript
+// ✅ Already implemented - Applied globally
+// All responses automatically wrapped with:
+{
+  "success": true,
+  "data": { ... },
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+
+// Error responses:
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "User not found"
+  },
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+### Custom Decorators (src/common/decorators/)
+
+```typescript
+// ✅ Already implemented - USE THESE
+import { CurrentUser } from '@common/decorators/current-user.decorator';
+import { Roles } from '@common/decorators/roles.decorator';
+import { Public } from '@common/decorators/public.decorator';
+import { ApiPaginatedResponse } from '@common/decorators/api-paginated-response.decorator';
+
+// Usage
+@Get('me')
+async getMe(@CurrentUser() user: UserPayload) { }
+
+@Post()
+@Roles(Role.ADMIN)
+async create() { }
+
+@Get('public-endpoint')
+@Public()
+async publicData() { }
+```
+
+### Exception Handling (src/common/exceptions/)
+
+```typescript
+// ✅ Use NestJS built-in exceptions
+throw new BadRequestException("Invalid input");
+throw new UnauthorizedException("Invalid credentials");
+throw new ForbiddenException("Access denied");
+throw new NotFoundException("Resource not found");
+throw new ConflictException("Resource already exists");
+throw new InternalServerErrorException("Something went wrong");
+
+// ✅ Custom business exceptions (if exists in common/exceptions)
+import { InsufficientBalanceException } from "@common/exceptions";
+throw new InsufficientBalanceException(required, available);
+```
+
+### Validation Pipe (Global)
+
+```typescript
+// ✅ Already configured globally in main.ts
+// DTOs are automatically validated
+// Just add class-validator decorators to DTOs
+
+export class CreateUserDto {
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(2)
+  @MaxLength(50)
+  name: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(8)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
+    message: "Password must contain uppercase, lowercase, and number",
+  })
+  password: string;
+}
+```
+
+---
+
+## Entity Rules
+
+### Base Entity (MUST use for tables with timestamps)
 
 ```typescript
 // src/common/entities/base.entity.ts
@@ -158,494 +517,415 @@ export abstract class BaseEntity {
   @PrimaryGeneratedColumn("increment", { type: "bigint" })
   id: number;
 
-  @CreateDateColumn({
-    name: "created_at",
-    type: "timestamptz",
-    default: () => "NOW()",
-  })
+  @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;
 
-  @UpdateDateColumn({
-    name: "updated_at",
-    type: "timestamptz",
-    default: () => "NOW()",
-  })
+  @UpdateDateColumn({ name: "updated_at", type: "timestamptz" })
   updatedAt: Date;
 }
 ```
 
-#### Rule 4: Common Mistake Example
-
-❌ **WRONG - This will cause "column does not exist" errors:**
+### Entity Definition Rules
 
 ```typescript
-// Table in DB: crypto.tickers_reference (NO created_at/updated_at)
-import { BaseEntity } from "./base.entity";
-
-@Entity({ name: "tickers_reference", schema: "crypto" })
-export class TickerReference extends BaseEntity {
-  // ❌ WRONG!
-  // BaseEntity adds created_at/updated_at automatically
-  // But DB table doesn't have these columns
-  // Result: QueryFailedError: column "created_at" does not exist
-}
-```
-
-✅ **CORRECT:**
-
-```typescript
-@Entity({ name: "tickers_reference", schema: "crypto" })
-export class TickerReference {
-  // ✅ CORRECT
-  /** No timestamps in DB table, so don't extend BaseEntity */
-  @PrimaryGeneratedColumn()
-  id: number;
-}
-```
-
-#### Rule 5: When Creating New Tables
-
-When YOU create a new table (via migration), ALWAYS include timestamps:
-
-```typescript
-// Migration file
-export class CreateYourTable1234567890 implements MigrationInterface {
-  public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-      CREATE TABLE crypto.your_table (
-        id BIGSERIAL PRIMARY KEY,
-        -- your columns here
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-    `);
-  }
-}
-```
-
-Then use `BaseEntity` in TypeScript:
-
-```typescript
-@Entity({ name: "your_table", schema: "crypto" })
-export class YourEntity extends BaseEntity {
-  // ✅ Table has timestamps
-}
-```
-
-#### Rule 6: Verification Checklist
-
-Before committing any new entity:
-
-- [ ] Checked actual database table schema
-- [ ] Verified if `created_at` and `updated_at` exist in DB
-- [ ] Extended `BaseEntity` if timestamps exist, plain class if not
-- [ ] Added JSDoc explaining inheritance choice
-- [ ] Tested with actual database connection
-
-#### Why This Matters
-
-**Error you'll get if wrong:**
-
-```
-QueryFailedError: column your_table.created_at does not exist
-```
-
-**This breaks:**
-
-- All queries involving the entity
-- Repository operations
-- Service layer calls
-- API endpoints
-
-## Repository Layer Pattern
-
-**CRITICAL**: Repositories MUST return DTOs, NEVER raw TypeORM entities to controllers.
-
-### Architecture Layers
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                  Controller Layer (Routes)                  │
-│  - Receives DTOs from services                             │
-│  - Returns standardized response with DTO data             │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   Service Layer                             │
-│  - Receives DTOs from repositories                         │
-│  - Implements business logic                               │
-│  - Returns DTOs to controllers                             │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│                Repository Layer (THIS IS KEY)               │
-│  - Queries TypeORM entities from database                  │
-│  - MUST convert entities to DTOs                           │
-│  - NEVER return raw TypeORM entities                       │
-│  - Returns type-safe DTOs                                  │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   Database Layer                            │
-│  - TypeORM entities (internal only)                        │
-│  - Never exposed outside repository                        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Repository Implementation Rules
-
-#### MUST: Use Custom Repository Pattern
-
-```typescript
-// src/modules/your-module/repositories/your.repository.ts
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { YourEntity } from "../entities/your.entity";
-import { YourResponseDto } from "../dto/your-response.dto";
-
-@Injectable()
-export class YourRepository {
-  constructor(
-    @InjectRepository(YourEntity)
-    private readonly repository: Repository<YourEntity>
-  ) {}
-
-  async findById(id: number): Promise<YourResponseDto | null> {
-    const entity = await this.repository.findOne({ where: { id } });
-    return this.toDto(entity);
-  }
-
-  async findAll(): Promise<YourResponseDto[]> {
-    const entities = await this.repository.find();
-    return entities.map((entity) => this.toDto(entity));
-  }
-
-  // All methods return DTOs, NOT entities
-  private toDto(entity: YourEntity | null): YourResponseDto | null {
-    if (!entity) return null;
-    return new YourResponseDto(entity);
-  }
-}
-```
-
-#### MUST: Return DTOs from Custom Methods
-
-```typescript
-async findByCustomField(fieldValue: string): Promise<YourResponseDto | null> {
-  const entity = await this.repository.findOne({
-    where: { customField: fieldValue },
-  });
-  return this.toDto(entity);
-}
-```
-
-#### MUST: Use DTO Conversion Methods
-
-**Option 1: Constructor-based Conversion (Simple Cases)**
-
-```typescript
-// src/modules/your-module/dto/your-response.dto.ts
-export class YourResponseDto {
-  id: number;
-  name: string;
-  createdAt: string;
-
-  constructor(entity: YourEntity) {
-    this.id = entity.id;
-    this.name = entity.name;
-    this.createdAt = entity.createdAt.toISOString();
-  }
-}
-```
-
-**Option 2: Static Factory Method (Complex Cases)**
-
-```typescript
-export class YourResponseDto {
-  id: number;
-  name: string;
-  calculatedField: number;
-
-  static fromEntity(entity: YourEntity): YourResponseDto {
-    const dto = new YourResponseDto();
-    dto.id = entity.id;
-    dto.name = entity.name;
-    dto.calculatedField = entity.fieldA + entity.fieldB;
-    return dto;
-  }
-}
-```
-
-**Option 3: class-transformer (Declarative)**
-
-```typescript
-import { Expose, Transform, plainToInstance } from "class-transformer";
-
-export class YourResponseDto {
-  @Expose()
-  id: number;
-
-  @Expose()
+// ✅ CORRECT - Full entity with all conventions
+@Entity({ name: "users", schema: "crypto" })
+@Index(["email"], { unique: true })
+@Index(["status", "createdAt"])
+export class UserEntity extends BaseEntity {
+  @Column({ type: "varchar", length: 100 })
   name: string;
 
-  @Expose()
-  @Transform(({ obj }) => obj.fieldA + obj.fieldB)
-  calculatedField: number;
+  @Column({ type: "varchar", length: 255, unique: true })
+  email: string;
 
-  static fromEntity(entity: YourEntity): YourResponseDto {
-    return plainToInstance(YourResponseDto, entity, {
-      excludeExtraneousValues: true,
-    });
-  }
+  @Column({ type: "varchar", length: 255, select: false }) // Hidden by default
+  password: string;
+
+  @Column({ type: "enum", enum: UserStatus, default: UserStatus.ACTIVE })
+  status: UserStatus;
+
+  @Column({ type: "decimal", precision: 18, scale: 8, default: "0" })
+  balance: string; // Use string for decimal
+
+  @Column({ type: "jsonb", nullable: true })
+  metadata: Record<string, any> | null;
+
+  // Relations
+  @OneToMany(() => OrderEntity, (order) => order.user)
+  orders: OrderEntity[];
+
+  @ManyToOne(() => RoleEntity, (role) => role.users)
+  @JoinColumn({ name: "role_id" })
+  role: RoleEntity;
 }
 ```
 
-### DTO Design Patterns
+### ⚠️ CRITICAL: Check DB Schema Before Entity
 
-#### Pattern 1: Direct Entity Mapping
+```bash
+# ALWAYS run this before creating/modifying entity
+psql -d your_database -c "\d crypto.table_name"
 
-```typescript
-// src/modules/simple/dto/simple-response.dto.ts
-export class SimpleResponseDto {
-  id: number;
-  name: string;
-  createdAt: Date;
-
-  constructor(entity: SimpleEntity) {
-    Object.assign(this, {
-      id: entity.id,
-      name: entity.name,
-      createdAt: entity.createdAt,
-    });
-  }
-}
+# Check if created_at/updated_at exist:
+# - YES → extend BaseEntity
+# - NO → don't extend BaseEntity
 ```
 
-#### Pattern 2: Separate Create/Update/Response DTOs
+---
+
+## DTO Rules
+
+### DTO Naming Convention
+
+| Type          | Naming                    | Example               |
+| ------------- | ------------------------- | --------------------- |
+| Create        | `Create[Entity]Dto`       | `CreateUserDto`       |
+| Update        | `Update[Entity]Dto`       | `UpdateUserDto`       |
+| Response      | `[Entity]ResponseDto`     | `UserResponseDto`     |
+| Query         | `[Entity]QueryDto`        | `UserQueryDto`        |
+| List Response | `[Entity]ListResponseDto` | `UserListResponseDto` |
+
+### DTO Structure
 
 ```typescript
 // create-user.dto.ts
-import { IsEmail, IsString, MinLength } from "class-validator";
-
 export class CreateUserDto {
+  @ApiProperty({ example: "John Doe" })
   @IsString()
-  @MinLength(2)
+  @IsNotEmpty()
   name: string;
 
+  @ApiProperty({ example: "john@example.com" })
   @IsEmail()
   email: string;
 }
 
 // update-user.dto.ts
-import { PartialType } from "@nestjs/mapped-types";
-
-export class UpdateUserDto extends PartialType(CreateUserDto) {}
+export class UpdateUserDto extends PartialType(
+  OmitType(CreateUserDto, ["email"] as const) // Email can't be updated
+) {}
 
 // user-response.dto.ts
 export class UserResponseDto {
+  @ApiProperty()
   id: number;
+
+  @ApiProperty()
   name: string;
+
+  @ApiProperty()
   email: string;
+
+  @ApiProperty()
   createdAt: string;
 
-  constructor(entity: UserEntity) {
-    this.id = entity.id;
-    this.name = entity.name;
-    this.email = entity.email;
-    this.createdAt = entity.createdAt.toISOString();
+  static fromEntity(entity: UserEntity): UserResponseDto {
+    const dto = new UserResponseDto();
+    dto.id = Number(entity.id); // bigint → number
+    dto.name = entity.name;
+    dto.email = entity.email;
+    dto.createdAt = entity.createdAt.toISOString();
+    return dto;
   }
 }
 ```
 
-### Common Patterns by Use Case
+---
 
-| Use Case              | Pattern                    | Example                                          |
-| --------------------- | -------------------------- | ------------------------------------------------ |
-| Simple CRUD           | Constructor DTO            | UserRepository, CooldownRepository               |
-| Field transformations | Static factory method      | PriceRepository (date.toISOString())             |
-| Calculated fields     | Transform decorator        | RewardsRepository (available_stock calculation)  |
-| Validation            | class-validator decorators | CreateUserDto, UpdateUserDto                     |
-| Partial updates       | PartialType                | UpdateUserDto extends PartialType<CreateUserDto> |
+## Testing Rules
 
-### Anti-Patterns (NEVER DO THIS)
-
-❌ **Returning TypeORM entities directly to controller**
+### Unit Test Structure
 
 ```typescript
-// repository
-async getUser(id: number): Promise<UserEntity> {  // ❌ WRONG
-  return this.repository.findOne({ where: { id } });
-}
+describe("UserService", () => {
+  let service: UserService;
+  let repository: jest.Mocked<UserRepository>;
 
-// controller
-@Get(':id')
-async getUser(@Param('id') id: number): Promise<UserEntity> {  // ❌ WRONG
-  return this.userService.getUser(id);
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        {
+          provide: UserRepository,
+          useValue: {
+            findById: jest.fn(),
+            findByEmail: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            remove: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+    repository = module.get(UserRepository);
+  });
+
+  describe("findOne", () => {
+    it("should return user when found", async () => {
+      const mockUser = { id: 1, name: "Test", email: "test@test.com" };
+      repository.findById.mockResolvedValue(mockUser as UserResponseDto);
+
+      const result = await service.findOne(1);
+
+      expect(result).toEqual(mockUser);
+      expect(repository.findById).toHaveBeenCalledWith(1);
+    });
+
+    it("should throw NotFoundException when not found", async () => {
+      repository.findById.mockResolvedValue(null);
+
+      await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
+    });
+  });
+});
+```
+
+### Test File Location
+
+```
+src/modules/user/
+├── user.service.ts
+├── user.service.spec.ts      # Unit test next to source
+├── user.controller.ts
+└── user.controller.spec.ts   # Unit test next to source
+
+test/
+├── user.e2e-spec.ts          # E2E tests in test folder
+└── jest-e2e.json
+```
+
+---
+
+## Code Quality Rules
+
+### TypeScript Strict Rules
+
+```json
+// tsconfig.json - MUST have these
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  }
 }
 ```
 
-✅ **Always return DTOs**
+### ESLint Rules (enforced)
 
-```typescript
-// repository
-async getUser(id: number): Promise<UserResponseDto | null> {  // ✅ CORRECT
-  const entity = await this.repository.findOne({ where: { id } });
-  return this.toDto(entity);
-}
+- No `any` type (use `unknown` or proper types)
+- No unused variables
+- No console.log (use Logger)
+- Prefer const over let
+- No magic numbers (use constants)
 
-// controller
-@Get(':id')
-async getUser(@Param('id') id: number): Promise<UserResponseDto> {  // ✅ CORRECT
-  return this.userService.getUser(id);
-}
-```
+### Naming Conventions
 
-❌ **Using entities in service layer for mutation**
+| Type       | Convention             | Example                                  |
+| ---------- | ---------------------- | ---------------------------------------- |
+| Class      | PascalCase             | `UserService`                            |
+| Interface  | PascalCase with prefix | `IUserService` or `UserServiceInterface` |
+| Method     | camelCase              | `findById`                               |
+| Variable   | camelCase              | `userName`                               |
+| Constant   | UPPER_SNAKE            | `MAX_RETRY_COUNT`                        |
+| File       | kebab-case             | `user-response.dto.ts`                   |
+| Folder     | kebab-case             | `user-management/`                       |
+| Enum       | PascalCase             | `UserStatus`                             |
+| Enum Value | UPPER_SNAKE            | `UserStatus.ACTIVE`                      |
 
-```typescript
-// service.ts
-const userEntity = await this.userRepo.findOneEntity(id); // ❌ If exposed
-userEntity.email = "new@email.com"; // ❌ Direct entity manipulation
-await this.userRepo.save(userEntity); // ❌ Bypasses DTO pattern
-```
-
-✅ **Using DTOs in service layer**
-
-```typescript
-// service.ts
-const userDto = await this.userRepo.findById(id); // ✅ Returns DTO
-const updatedDto = await this.userRepo.update(id, { email: "new@email.com" }); // ✅ Returns DTO
-```
-
-### Exception: Internal-Only Methods
-
-Only use raw entities for internal repository methods (prefix with `_` or clearly document):
+### JSDoc Requirements
 
 ```typescript
 /**
- * @internal - Returns entities for complex joins/calculations.
- * Public API methods should use findForDate() which returns DTOs.
+ * Find user by ID
+ * @param id - User's unique identifier
+ * @returns User data or null if not found
+ * @throws {NotFoundException} When user doesn't exist
+ * @example
+ * const user = await userService.findOne(1);
  */
-private async findEntitiesForDate(date: Date): Promise<ActiveUniverseEntity[]> {
-  return this.repository.find({ where: { tradingDay: date } });
-}
-
-/** Public API - returns DTOs */
-async findForDate(date: Date): Promise<UniverseItemDto[]> {
-  const entities = await this.findEntitiesForDate(date);
-  return entities.map((e) => this.toDto(e));
+async findOne(id: number): Promise<UserResponseDto | null> {
+  // ...
 }
 ```
 
-### Benefits of This Pattern
+---
 
-1. **Type Safety**: DTOs with class-validator validate all data at repository boundary
-2. **API Contract**: DTOs define clear contracts, entities are implementation details
-3. **Prevents Leakage**: TypeORM sessions and lazy-loading issues contained in repository
-4. **Easier Testing**: Mock with DTOs instead of TypeORM entities
-5. **Migration Safety**: Entity changes don't break API if DTO stays stable
-6. **Security**: Prevents accidental exposure of sensitive entity fields
-7. **Serialization Control**: DTOs control exactly what gets serialized to JSON
+## Anti-Patterns (NEVER DO)
 
-## Best Practices Reminders
-
-- 내가 지시하는 것 보다 더 좋은 방향 (베스트 프랙티스)이 있으면 더 좋게 구현 할 것
-- 덕지덕지 코드 말고, 재사용 가능 하며 베스트 프랙티스가 있는 방향으로 구현 할 것
-- 리팩토링이 쉬운 코드로 구현 할 것
-- 이미 구현 되어 있는 코드 및 기능이 있는지 찾아 볼 것
-
-### TypeORM Entity Definition Rules
-
-**MUST: Use Proper Column Decorators with Types**
+### ❌ DON'T: Return Entity from Repository
 
 ```typescript
-// ✅ CORRECT - Explicit types with decorators
-import { Entity, Column, PrimaryGeneratedColumn, Index } from "typeorm";
-
-@Entity({ name: "my_table", schema: "crypto" })
-export class MyEntity {
-  @PrimaryGeneratedColumn("increment", { type: "bigint" })
-  id: number;
-
-  @Column({ type: "varchar", length: 100, nullable: false })
-  name: string;
-
-  @Column({ type: "int", default: 0 })
-  count: number;
-
-  @Column({ type: "timestamptz", nullable: true })
-  createdAt: Date | null;
-
-  @Column({ type: "decimal", precision: 18, scale: 8, nullable: false })
-  price: string; // Use string for decimal to avoid precision loss
-
-  @Column({ type: "boolean", default: false })
-  isActive: boolean;
+// ❌ WRONG
+async findUser(id: number): Promise<UserEntity> {
+  return this.repo.findOne({ where: { id } });
 }
 
-// ❌ WRONG - Missing explicit types
-@Entity()
-export class MyEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column() // ❌ No type specified
-  name: string;
-
-  @Column() // ❌ No type specified
-  count: number;
+// ✅ CORRECT
+async findUser(id: number): Promise<UserResponseDto | null> {
+  const entity = await this.repo.findOne({ where: { id } });
+  return entity ? UserResponseDto.fromEntity(entity) : null;
 }
 ```
 
-**Type Mapping Guidelines**
-
-| PostgreSQL Type    | TypeORM Column Type              | TypeScript Type             |
-| ------------------ | -------------------------------- | --------------------------- |
-| BIGINT / BIGSERIAL | `'bigint'`                       | `number` or `string`        |
-| INTEGER            | `'int'`                          | `number`                    |
-| VARCHAR(n)         | `'varchar'` with length          | `string`                    |
-| TEXT               | `'text'`                         | `string`                    |
-| BOOLEAN            | `'boolean'`                      | `boolean`                   |
-| TIMESTAMPTZ        | `'timestamptz'`                  | `Date`                      |
-| DATE               | `'date'`                         | `Date` or `string`          |
-| DECIMAL / NUMERIC  | `'decimal'` with precision/scale | `string` (recommended)      |
-| JSONB              | `'jsonb'`                        | `object` or typed interface |
-
-**Nullable Columns**
+### ❌ DON'T: Business Logic in Controller
 
 ```typescript
-// Nullable column - use union type
-@Column({ type: 'varchar', length: 255, nullable: true })
-description: string | null;
+// ❌ WRONG
+@Post()
+async create(@Body() dto: CreateUserDto) {
+  const existing = await this.userRepo.findByEmail(dto.email);
+  if (existing) throw new ConflictException();
+  return this.userRepo.create(dto);
+}
 
-// Non-nullable column
-@Column({ type: 'varchar', length: 100, nullable: false })
-name: string;
-```
-
-**Index Decorators**
-
-```typescript
-@Entity({ name: "trades", schema: "crypto" })
-@Index(["symbol", "tradedAt"]) // Composite index
-export class TradeEntity {
-  @PrimaryGeneratedColumn("increment", { type: "bigint" })
-  id: number;
-
-  @Index() // Single column index
-  @Column({ type: "varchar", length: 20 })
-  symbol: string;
-
-  @Column({ type: "timestamptz" })
-  tradedAt: Date;
+// ✅ CORRECT
+@Post()
+async create(@Body() dto: CreateUserDto) {
+  return this.userService.create(dto); // Logic in service
 }
 ```
 
-**Benefits of Explicit Types**
+### ❌ DON'T: Duplicate Utility Functions
 
-- Prevents TypeORM from inferring incorrect column types
-- Clear documentation of database schema in code
-- Better IDE autocomplete and type checking
-- Easier database migrations
-- Avoids runtime type coercion issues
+```typescript
+// ❌ WRONG - Creating duplicate in feature module
+// src/modules/order/utils/date.util.ts
+export const formatDate = (date: Date) => date.toISOString();
+
+// ✅ CORRECT - Use common utility
+import { formatDate } from "@common/utils/date.util";
+```
+
+### ❌ DON'T: Skip Documentation
+
+```typescript
+// ❌ WRONG - No docs update after new function
+async calculateReward(userId: number): Promise<number> { }
+
+// ✅ CORRECT - Update docs/FUNCTION_REGISTRY.md
+// | calculateReward | reward.service.ts | Calculate user reward | userId: number | Promise<number> |
+```
+
+---
+
+## Performance Guidelines
+
+### Database Query Optimization
+
+```typescript
+// ✅ Use QueryBuilder for complex queries
+const users = await this.repo
+  .createQueryBuilder("user")
+  .leftJoinAndSelect("user.orders", "order")
+  .where("user.status = :status", { status: "active" })
+  .andWhere("order.createdAt > :date", { date: lastMonth })
+  .orderBy("user.createdAt", "DESC")
+  .take(10)
+  .getMany();
+
+// ✅ Use select for specific fields
+const userNames = await this.repo
+  .createQueryBuilder("user")
+  .select(["user.id", "user.name"])
+  .getMany();
+
+// ✅ Use pagination for large datasets
+// Never use find() without limit on large tables
+```
+
+### Caching Strategy
+
+```typescript
+// ✅ Use cache for expensive operations
+@Injectable()
+export class PriceService {
+  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+
+  async getCurrentPrice(symbol: string): Promise<number> {
+    const cacheKey = `price:${symbol}`;
+
+    let price = await this.cacheManager.get<number>(cacheKey);
+    if (price) return price;
+
+    price = await this.fetchPriceFromAPI(symbol);
+    await this.cacheManager.set(cacheKey, price, 60000); // 1 min TTL
+
+    return price;
+  }
+}
+```
+
+---
+
+## Environment Configuration
+
+### Config Module Pattern
+
+```typescript
+// src/config/database.config.ts
+import { registerAs } from '@nestjs/config';
+
+export default registerAs('database', () => ({
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT, 10) || 5432,
+  username: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+}));
+
+// Usage in module
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      load: [databaseConfig],
+      validationSchema: Joi.object({
+        DB_HOST: Joi.string().required(),
+        DB_PORT: Joi.number().default(5432),
+      }),
+    }),
+  ],
+})
+```
+
+---
+
+## Quick Reference
+
+### Common Commands
+
+| Task                | Command                                             |
+| ------------------- | --------------------------------------------------- |
+| New module          | `nest g module modules/feature-name`                |
+| New controller      | `nest g controller modules/feature-name`            |
+| New service         | `nest g service modules/feature-name`               |
+| New resource (CRUD) | `nest g resource modules/feature-name`              |
+| Generate migration  | `npm run migration:generate -- src/migrations/Name` |
+| Run migration       | `npm run migration:run`                             |
+
+### Import Path Aliases
+
+```typescript
+// tsconfig.json paths
+import { UserService } from "@modules/user/user.service";
+import { BaseEntity } from "@common/entities/base.entity";
+import { PageDto } from "@common/dto/pagination";
+import { DatabaseConfig } from "@config/database.config";
+```
+
+### NestJS Exception Status Codes
+
+| Exception                    | HTTP Status |
+| ---------------------------- | ----------- |
+| BadRequestException          | 400         |
+| UnauthorizedException        | 401         |
+| ForbiddenException           | 403         |
+| NotFoundException            | 404         |
+| ConflictException            | 409         |
+| UnprocessableEntityException | 422         |
+| InternalServerErrorException | 500         |
