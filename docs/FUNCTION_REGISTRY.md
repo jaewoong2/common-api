@@ -103,6 +103,15 @@
 | `getBalance`      | src/modules/point/point.service.ts     | Get user balance (sum of remaining lots)              | `userId: string`                                                                                  | `Promise<{balance: string, balanceNumber: number}>` | `pointService.getBalance(userId)`                      |
 | `getLedger`       | src/modules/point/point.service.ts     | Get user ledger (transaction history)                 | `userId: string`, `limit?: number`, `offset?: number`                                             | `Promise<{entries: WalletLedgerEntity[], total: number}>` | `pointService.getLedger(userId, 20, 0)`                |
 
+### Wallet Service
+
+| Function/Method | File                                   | Description                                  | Parameters                                 | Return | Example                          |
+| --------------- | -------------------------------------- | -------------------------------------------- | ------------------------------------------ | ------ | -------------------------------- |
+| `credit`        | src/modules/wallet/wallet.service.ts   | Credit wallet (placeholder)                  | `CreditWalletDto`                          | `never` | `walletService.credit(dto)`     |
+| `debit`         | src/modules/wallet/wallet.service.ts   | Debit wallet (placeholder)                   | `DebitWalletDto`                           | `never` | `walletService.debit(dto)`      |
+| `getBalance`    | src/modules/wallet/wallet.service.ts   | Get wallet balance (placeholder)             | `WalletBalanceQueryDto`                    | `never` | `walletService.getBalance(q)`   |
+| `getLedger`     | src/modules/wallet/wallet.service.ts   | Get wallet ledger (placeholder)              | `WalletLedgerQueryDto`                     | `never` | `walletService.getLedger(q)`    |
+
 ### Wallet Lot Repository
 
 | Function/Method              | File                                              | Description                                    | Parameters                                                          | Return                            | Example                                           |
@@ -194,10 +203,14 @@
 
 ## Platform
 
-| Function/Method      | File                                    | Description                         | Parameters                       | Return            | Example                                      |
-| -------------------- | --------------------------------------- | ----------------------------------- | -------------------------------- | ----------------- | -------------------------------------------- |
-| `listApps`           | src/modules/platform/platform.service.ts| Lists registered apps               | `()`                             | `Promise<never>`* | `platformService.listApps()`                 |
-| `createApp`          | src/modules/platform/platform.service.ts| Creates a new app                   | `CreateAppDto`                   | `Promise<never>`* | `platformService.createApp(dto)`             |
+| Function/Method      | File                                    | Description                         | Parameters                                                                 | Return            | Example                                      |
+| -------------------- | --------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------- | ----------------- | -------------------------------------------- |
+| `listApps`           | src/modules/platform/platform.service.ts| Lists registered apps               | `()`                                                                       | `Promise<AppEntity[]>` | `platformService.listApps()`                 |
+| `getApp`             | src/modules/platform/platform.service.ts| Get app by ID                       | `appId: string`                                                            | `Promise<AppEntity>`   | `platformService.getApp(appId)`              |
+| `createApp`          | src/modules/platform/platform.service.ts| Creates a new app                   | `name: string`, `callbackBaseUrl?: string`, `callbackAllowlistPaths?: string[]` | `Promise<AppEntity>` | `platformService.createApp('MyApp')`         |
+| `updateApp`          | src/modules/platform/platform.service.ts| Update app configuration            | `appId: string`, `data: { name?, callbackBaseUrl?, callbackAllowlistPaths?, status?, callbackSecretRef? }` | `Promise<AppEntity>` | `platformService.updateApp(appId, data)`     |
+| `suspendApp`         | src/modules/platform/platform.service.ts| Suspend app                         | `appId: string`                                                            | `Promise<AppEntity>`   | `platformService.suspendApp(appId)`          |
+| `activateApp`        | src/modules/platform/platform.service.ts| Activate app                        | `appId: string`                                                            | `Promise<AppEntity>`   | `platformService.activateApp(appId)`         |
 | `updateApp`          | src/modules/platform/platform.service.ts| Updates app callback configuration  | `appId: string`, `UpdateAppDto`  | `Promise<never>`* | `platformService.updateApp(id, dto)`         |
 
 > \*Services currently throw `NotImplementedException` placeholders.

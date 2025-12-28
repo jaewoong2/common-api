@@ -1,6 +1,6 @@
 # DTO Schema
 
-아직 DTO가 정의되지 않았습니다. 각 모듈의 DTO를 추가할 때 아래 형식을 따릅니다.
+현재 정의된 DTO 목록입니다. 각 모듈의 DTO를 추가할 때 아래 형식을 따릅니다.
 
 | DTO Name                | File Path                                  | Purpose                                       | Notes |
 | ----------------------- | -------------------------------------------| --------------------------------------------- | ----- |
@@ -9,10 +9,10 @@
 | `RefreshTokenDto`       | src/modules/auth/dto/auth.dto.ts           | Refresh access token                          | -     |
 | `LogoutDto`             | src/modules/auth/dto/auth.dto.ts           | Logout via refresh token                      | refresh optional |
 | `UpdateProfileDto`      | src/modules/auth/dto/auth.dto.ts           | Update profile fields                         | nickname optional |
-| `CreditWalletDto`       | src/modules/point/dto/wallet.dto.ts        | Wallet credit request                         | requires idempotency header |
-| `DebitWalletDto`        | src/modules/point/dto/wallet.dto.ts        | Wallet debit request                          | requires idempotency header |
-| `WalletBalanceQueryDto` | src/modules/point/dto/wallet.dto.ts        | Balance query params                          | user_id |
-| `WalletLedgerQueryDto`  | src/modules/point/dto/wallet.dto.ts        | Ledger query params                           | pagination cursor/limit |
+| `CreditWalletDto`       | src/modules/wallet/dto/wallet.dto.ts       | Wallet credit request                         | requires idempotency header |
+| `DebitWalletDto`        | src/modules/wallet/dto/wallet.dto.ts       | Wallet debit request                          | requires idempotency header |
+| `WalletBalanceQueryDto` | src/modules/wallet/dto/wallet.dto.ts       | Balance query params                          | user_id |
+| `WalletLedgerQueryDto`  | src/modules/wallet/dto/wallet.dto.ts       | Ledger query params                           | pagination cursor/limit |
 | `CreateProductDto`      | src/modules/billing/dto/product.dto.ts     | Admin create product                          | type/name/metadata |
 | `UpdateProductDto`      | src/modules/billing/dto/product.dto.ts     | Admin update product                          | name/active/metadata |
 | `CreateOrderDto`        | src/modules/billing/dto/order.dto.ts       | Create order with wallet payment              | includes reason/ref fields |
