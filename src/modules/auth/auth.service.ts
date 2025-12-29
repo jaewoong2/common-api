@@ -42,6 +42,7 @@ import {
 } from "./interfaces/google-profile.interface";
 import { DEFAULT_APP_ID } from "./constants/auth.constants";
 import { OAuthEmailRequiredException } from "./exceptions/oauth.exceptions";
+import { config } from "process";
 
 /**
  * Auth Service
@@ -87,14 +88,6 @@ export class AuthService {
   }
 
   /**
-   * OAuth start - Redirect to provider (handled by Passport guard)
-   */
-  async oauthStart(provider: string, req: AppRequest) {
-    // This method is just a placeholder - actual redirect is handled by Passport guard
-    // No implementation needed here
-  }
-
-  /**
    * OAuth callback - Generate authorization code or JWT tokens
    * @param provider OAuth provider name
    * @param req Request with user from Passport
@@ -118,6 +111,7 @@ export class AuthService {
         redirectUri,
         provider
       );
+
       return { code, redirect_uri: redirectUri };
     }
 
@@ -694,32 +688,31 @@ export class AuthService {
     this.logger.log(`Verifying token/code`);
 
     // Find token in database
-    const tokenEntity = await this.magicLinkRepository.findOAuthCodeByHash(
-      code
-    );
+    const tokenEntity =
+      await this.magicLinkRepository.findOAuthCodeByHash(code);
 
     if (!tokenEntity) {
-      throw new UnauthorizedException('Invalid or expired token');
+      throw new UnauthorizedException("Invalid or expired token");
     }
 
     // Check expiration
     if (new Date() > tokenEntity.expiresAt) {
-      throw new UnauthorizedException('Token has expired');
+      throw new UnauthorizedException("Token has expired");
     }
 
     // Check if already used
     if (tokenEntity.isUsed) {
-      throw new UnauthorizedException('Token already used');
+      throw new UnauthorizedException("Token already used");
     }
 
     // For OAuth flows, validate redirect_uri matches
     if (
       tokenEntity.provider &&
-      tokenEntity.provider !== 'magic-link' &&
+      tokenEntity.provider !== "magic-link" &&
       redirectUri
     ) {
       if (tokenEntity.redirectUrl !== redirectUri) {
-        throw new UnauthorizedException('redirect_uri does not match');
+        throw new UnauthorizedException("redirect_uri does not match");
       }
     }
 
@@ -732,7 +725,7 @@ export class AuthService {
       // OAuth flow
       user = await this.userRepository.findById(tokenEntity.userId);
       if (!user) {
-        throw new NotFoundException('User not found');
+        throw new NotFoundException("User not found");
       }
     } else {
       // Magic link flow

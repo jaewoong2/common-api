@@ -11,6 +11,7 @@ import {
   Res,
   Delete,
   UseGuards,
+  Redirect,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import {
@@ -48,8 +49,9 @@ export class AuthController {
 
   @Post("v1/auth/verify")
   @ApiOperation({
-    summary: 'Unified token verification for Magic Link and OAuth codes',
-    description: 'Verifies magic link tokens or OAuth authorization codes and returns JWT tokens. Auto-detects token type.'
+    summary: "Unified token verification for Magic Link and OAuth codes",
+    description:
+      "Verifies magic link tokens or OAuth authorization codes and returns JWT tokens. Auto-detects token type.",
   })
   async verifyToken(@Body() dto: VerifyTokenDto) {
     return this.authService.verifyToken(dto.code, dto.redirect_uri);
@@ -63,6 +65,7 @@ export class AuthController {
 
   @Get("v1/auth/oauth/google/callback")
   @UseGuards(FastifyPassportGuard("google"))
+  @Redirect("https://docs.nestjs.com", 302)
   async googleOAuthCallback(
     @Req() req: AppRequest<UserEntity>,
     @Res() res: FastifyReply
@@ -73,11 +76,12 @@ export class AuthController {
     if ("code" in result && result.redirect_uri) {
       const redirectUrl = new URL(result.redirect_uri);
       redirectUrl.searchParams.set("code", result.code);
-      return res.redirect(redirectUrl.toString());
-    }
 
-    // Backward compatibility - return tokens as JSON
-    return res.send(result);
+      return {
+        url: redirectUrl.toString(),
+        statusCode: 302,
+      };
+    }
   }
 
   @Get("v1/auth/oauth/kakao/start")
@@ -88,6 +92,7 @@ export class AuthController {
 
   @Get("v1/auth/oauth/kakao/callback")
   @UseGuards(FastifyPassportGuard("kakao"))
+  @Redirect()
   async kakaoOAuthCallback(
     @Req() req: AppRequest<UserEntity>,
     @Res() res: FastifyReply
@@ -98,11 +103,17 @@ export class AuthController {
     if ("code" in result && result.redirect_uri) {
       const redirectUrl = new URL(result.redirect_uri);
       redirectUrl.searchParams.set("code", result.code);
-      return res.redirect(redirectUrl.toString());
+
+      return {
+        url: redirectUrl.toString(),
+        statusCode: 302,
+      };
     }
 
-    // Backward compatibility - return tokens as JSON
-    return res.send(result);
+    return {
+      url: "https://docs.nestjs.com",
+      statusCode: 302,
+    };
   }
 
   @Post("v1/auth/refresh")
