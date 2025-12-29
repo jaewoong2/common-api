@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity } from '../../../database/entities/user.entity';
 import { UserStatus } from '../../../common/enums';
+import { JsonObject } from '@common/types/json-value.type';
 
 /**
  * User Repository
@@ -40,7 +41,7 @@ export class UserRepository {
   async create(data: {
     appId: string;
     email: string;
-    profile?: Record<string, any>;
+    profile?: JsonObject;
   }): Promise<UserEntity> {
     const user = this.repo.create({
       ...data,
@@ -55,7 +56,7 @@ export class UserRepository {
    */
   async updateProfile(
     userId: string,
-    profile: Record<string, any>,
+    profile: JsonObject,
   ): Promise<UserEntity> {
     await this.repo.update(userId, { profile });
     return this.findById(userId);

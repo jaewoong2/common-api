@@ -6,6 +6,7 @@ import {
 } from 'typeorm';
 import { BaseEntity } from '../../core/database/base.entity';
 import { ProductType } from '../../common/enums';
+import { JsonObject } from '@common/types/json-value.type';
 import { OrderEntity } from './order.entity';
 
 /**
@@ -49,7 +50,7 @@ export class ProductEntity extends BaseEntity {
    * Additional product metadata (description, images, features, etc.)
    */
   @Column({ type: 'jsonb', nullable: true })
-  metadata: Record<string, any> | null;
+  metadata: JsonObject | null;
 
   /**
    * Whether product is available for purchase

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager } from 'typeorm';
-import { UserRepository } from '../auth/repositories/user.repository';
+import { UserRepository } from '../user/repositories/user.repository';
 import { PointService } from '../point/point.service';
 import { JobService } from '../job/job.service';
 import { JobRepository } from '../job/repositories/job.repository';

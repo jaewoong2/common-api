@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager, LessThanOrEqual } from 'typeorm';
 import { JobEntity } from '../../../database/entities/job.entity';
 import { JobType, JobStatus } from '../../../common/enums';
+import { JsonObject } from '@common/types/json-value.type';
 
 /**
  * Job Repository
@@ -39,7 +40,7 @@ export class JobRepository {
     data: {
       appId: string;
       type: JobType;
-      payload: Record<string, any>;
+      payload: JsonObject;
       maxRetries?: number;
       nextRetryAt?: Date | null;
     },

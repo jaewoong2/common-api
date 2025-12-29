@@ -67,7 +67,7 @@ npm run start:prod
 
 ### 6. Access Swagger UI
 
-Open [http://localhost:3000/api-docs](http://localhost:3000/api-docs) to view the API documentation.
+Open [http://localhost:8000/api-docs](http://localhost:8000/api-docs) to view the API documentation.
 
 ## Project Structure
 

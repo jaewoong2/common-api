@@ -10,6 +10,7 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import {
@@ -18,6 +19,7 @@ import {
 } from "./dto/admin.dto";
 import { AdminService } from "./admin.service";
 
+@ApiTags('admin')
 @UseGuards(RolesGuard)
 @Controller("v1/admin")
 export class AdminController {
@@ -72,7 +74,7 @@ export class AdminController {
     @Query() query: ListJobsQueryDto,
   ) {
     return this.adminService.listJobs(appId, {
-      status: query.status as any,
+      status: query.status,
       limit: query.limit,
       offset: 0,
     });

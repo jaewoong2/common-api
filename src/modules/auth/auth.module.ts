@@ -1,23 +1,28 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { UserRepository } from './repositories/user.repository';
+import { UserModule } from '../user/user.module';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 import { MagicLinkTokenRepository } from './repositories/magic-link-token.repository';
-import { UserEntity } from '../../database/entities/user.entity';
+import { OAuthProviderRepository } from './repositories/oauth-provider.repository';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { KakaoStrategy } from './strategies/kakao.strategy';
 import { RefreshTokenEntity } from '../../database/entities/refresh-token.entity';
 import { MagicLinkTokenEntity } from '../../database/entities/magic-link-token.entity';
+import { OAuthProviderEntity } from '../../database/entities/oauth-provider.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      UserEntity,
       RefreshTokenEntity,
       MagicLinkTokenEntity,
+      OAuthProviderEntity,
     ]),
+    PassportModule.register({ session: false, defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -25,19 +30,17 @@ import { MagicLinkTokenEntity } from '../../database/entities/magic-link-token.e
         signOptions: { expiresIn: '15m' },
       }),
     }),
+    UserModule,
   ],
   controllers: [AuthController],
   providers: [
     AuthService,
-    UserRepository,
     RefreshTokenRepository,
     MagicLinkTokenRepository,
+    OAuthProviderRepository,
+    GoogleStrategy,
+    KakaoStrategy,
   ],
-  exports: [
-    AuthService,
-    UserRepository,
-    RefreshTokenRepository,
-    MagicLinkTokenRepository,
-  ],
+  exports: [AuthService, RefreshTokenRepository, MagicLinkTokenRepository],
 })
 export class AuthModule {}

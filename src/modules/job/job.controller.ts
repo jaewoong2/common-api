@@ -1,7 +1,9 @@
 import { Body, Controller, Headers, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CreateCallbackJobDto, RunJobsDto } from './dto/job.dto';
 import { JobService } from './job.service';
 
+@ApiTags('job')
 @Controller()
 export class JobController {
   constructor(private readonly jobService: JobService) {}

@@ -14,28 +14,30 @@ export class AppLogger extends ConsoleLogger {
     this.requestId = requestId;
   }
 
-  private withRequestId(message: any) {
-    return this.requestId ? `[req:${this.requestId}] ${message}` : message;
+  private formatWithRequestId(message: unknown): string {
+    const normalized =
+      typeof message === 'string' ? message : JSON.stringify(message);
+    return this.requestId ? `[req:${this.requestId}] ${normalized}` : normalized;
   }
 
   /**
    * Logs an info message with optional request id prefix.
    */
-  override log(message: any, context?: string) {
-    super.log(this.withRequestId(message), context);
+  override log(message: unknown, context?: string) {
+    super.log(this.formatWithRequestId(message), context);
   }
 
   /**
    * Logs a warning with optional request id prefix.
    */
-  override warn(message: any, context?: string) {
-    super.warn(this.withRequestId(message), context);
+  override warn(message: unknown, context?: string) {
+    super.warn(this.formatWithRequestId(message), context);
   }
 
   /**
    * Logs an error with optional request id prefix.
    */
-  override error(message: any, trace?: string, context?: string) {
-    super.error(this.withRequestId(message), trace, context);
+  override error(message: unknown, trace?: string, context?: string) {
+    super.error(this.formatWithRequestId(message), trace, context);
   }
 }

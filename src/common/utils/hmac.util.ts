@@ -14,10 +14,11 @@ import * as crypto from 'crypto';
 export function buildCanonicalString(
   method: string,
   path: string,
-  body: any,
+  body: unknown,
   timestamp: number,
 ): string {
-  const bodyString = typeof body === 'string' ? body : JSON.stringify(body);
+  const bodyString =
+    typeof body === 'string' ? body : JSON.stringify(body ?? {});
   return `${method.toUpperCase()}\n${path}\n${bodyString}\n${timestamp}`;
 }
 
@@ -73,7 +74,7 @@ export function generateHmacSecret(): string {
  * @example
  * sha256Hash({userId: '123', amount: '1000'})
  */
-export function sha256Hash(data: any): string {
-  const canonical = typeof data === 'string' ? data : JSON.stringify(data);
+export function sha256Hash(data: unknown): string {
+  const canonical = typeof data === 'string' ? data : JSON.stringify(data ?? {});
   return crypto.createHash('sha256').update(canonical).digest('hex');
 }

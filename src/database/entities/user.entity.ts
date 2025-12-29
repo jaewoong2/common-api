@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { BaseEntity } from '../../core/database/base.entity';
 import { UserStatus, UserRole } from '../../common/enums';
+import { JsonObject } from '@common/types/json-value.type';
 import { AppEntity } from './app.entity';
 import { RefreshTokenEntity } from './refresh-token.entity';
 import { WalletLotEntity } from './wallet-lot.entity';
@@ -54,7 +55,7 @@ export class UserEntity extends BaseEntity {
    * User profile data (JSON: nickname, avatar, preferences, etc.)
    */
   @Column({ type: 'jsonb', nullable: true })
-  profile: Record<string, any> | null;
+  profile: JsonObject | null;
 
   /**
    * User role for RBAC

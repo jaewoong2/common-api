@@ -4,6 +4,7 @@ import {
   Index,
 } from 'typeorm';
 import { BaseEntity } from '../../core/database/base.entity';
+import { JsonValue } from '@common/types/json-value.type';
 
 /**
  * Idempotency Key Entity
@@ -37,7 +38,7 @@ export class IdempotencyKeyEntity extends BaseEntity {
    * Cached response body (for returning same response)
    */
   @Column({ name: 'response_body', type: 'jsonb' })
-  responseBody: Record<string, any>;
+  responseBody: JsonValue;
 
   /**
    * HTTP status code of original response

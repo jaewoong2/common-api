@@ -27,12 +27,11 @@ export class MagicLinkTokenRepository {
   async create(data: {
     appId: string;
     email: string;
-    plainToken: string;
     verificationCode: string;
     redirectUrl?: string;
     expiresAt: Date;
   }): Promise<MagicLinkTokenEntity> {
-    const tokenHash = this.hashToken(data.plainToken);
+    const tokenHash = this.hashToken(data.verificationCode);
 
     const token = this.repo.create({
       appId: data.appId,
@@ -58,6 +57,9 @@ export class MagicLinkTokenRepository {
       where: {
         tokenHash,
         isUsed: false,
+      },
+      order: {
+        createdAt: "DESC",
       },
     });
   }

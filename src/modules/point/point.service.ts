@@ -11,6 +11,7 @@ import { IdempotencyKeyRepository } from '../../common/repositories/idempotency-
 import { WalletDirection, WalletReason } from '../../common/enums';
 import { WalletLedgerEntity } from '../../database/entities/wallet-ledger.entity';
 import * as crypto from 'crypto';
+import { JsonValue } from '@common/types/json-value.type';
 
 /**
  * Point/Wallet Service
@@ -342,7 +343,7 @@ export class PointService {
   private async checkIdempotency(
     appId: string,
     idempotencyKey: string,
-    requestData: any,
+    requestData: JsonValue,
   ) {
     const existing = await this.idempotencyKeyRepository.findByKey(
       appId,
@@ -377,8 +378,8 @@ export class PointService {
   private async saveIdempotency(
     appId: string,
     idempotencyKey: string,
-    requestData: any,
-    responseBody: any,
+    requestData: JsonValue,
+    responseBody: JsonValue,
     httpStatus: number,
     manager?: EntityManager,
   ) {
@@ -402,7 +403,7 @@ export class PointService {
    * @param data - Request data
    * @returns SHA-256 hash
    */
-  private hashRequest(data: any): string {
+  private hashRequest(data: JsonValue): string {
     const canonical = JSON.stringify(data);
     return crypto.createHash('sha256').update(canonical).digest('hex');
   }

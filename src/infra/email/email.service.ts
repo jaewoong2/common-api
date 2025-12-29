@@ -1,13 +1,25 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 
 /**
  * Email Service
- * @description Handles email sending (AWS SES)
- * @note For MVP: logs to console. Production: use AWS SES
+ * @description Handles email sending via AWS SES
+ * @note Production-ready implementation with AWS SES
  */
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
+  private readonly sesClient: SESClient;
+  private readonly fromEmail: string;
+
+  constructor(private readonly configService: ConfigService) {
+    // Initialize AWS SES Client
+    this.sesClient = new SESClient({
+      region: this.configService.get<string>("aws.ses.ap-northeast-2"),
+    });
+    this.fromEmail = this.configService.get<string>("aws.ses.fromEmail");
+  }
 
   /**
    * Send magic link email
@@ -20,41 +32,35 @@ export class EmailService {
    */
   async sendMagicLinkEmail(
     to: string,
-    token: string,
     code: string,
-    redirectUrl?: string,
+    redirectUrl?: string
   ): Promise<void> {
     const magicLink = redirectUrl
-      ? `${redirectUrl}?token=${token}`
-      : `https://yourdomain.com/auth/verify?token=${token}`;
+      ? `${redirectUrl}?verificationCode=${code}`
+      : `https://biizbiiz.com/auth/verify?verificationCode=${code}`;
 
     const htmlBody = this.buildHtmlTemplate(magicLink, code);
-    const textBody = this.buildTextTemplate(magicLink, code);
 
-    // For MVP: log to console
-    this.logger.log(`
-========================================
-EMAIL: Magic Link
-TO: ${to}
-SUBJECT: Your Login Link
-----------------------------------------
-${textBody}
-========================================
-    `);
+    try {
+      // Production: Use AWS SES
+      const command = new SendEmailCommand({
+        Source: this.fromEmail,
+        Destination: { ToAddresses: [to] },
+        Message: {
+          Subject: { Data: "Your Login Link" },
+          Body: {
+            Html: { Data: htmlBody },
+          },
+        },
+      });
 
-    // Production: Use AWS SES
-    // const ses = new SESClient({ region: process.env.AWS_REGION });
-    // await ses.send(new SendEmailCommand({
-    //   Source: process.env.AWS_SES_FROM_EMAIL,
-    //   Destination: { ToAddresses: [to] },
-    //   Message: {
-    //     Subject: { Data: 'Your Login Link' },
-    //     Body: {
-    //       Html: { Data: htmlBody },
-    //       Text: { Data: textBody },
-    //     },
-    //   },
-    // }));
+      await this.sesClient.send(command);
+      this.logger.log(`Magic link email sent successfully to ${to}`);
+    } catch (error) {
+      this.logger.error(`Failed to send email to ${to}`, error.stack);
+      // Re-throw to let caller handle the error
+      throw error;
+    }
   }
 
   /**

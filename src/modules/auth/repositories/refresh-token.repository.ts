@@ -49,7 +49,7 @@ export class RefreshTokenRepository {
     return this.repo.findOne({
       where: {
         tokenHash,
-        revokedAt: null as any, // Not revoked
+        revokedAt: null, // Not revoked
       },
     });
   }
@@ -71,7 +71,7 @@ export class RefreshTokenRepository {
    */
   async revokeAllForUser(userId: string): Promise<void> {
     await this.repo.update(
-      { userId, revokedAt: null as any },
+      { userId, revokedAt: null },
       { revokedAt: new Date() },
     );
   }

@@ -9,9 +9,11 @@ import { TenantMiddleware } from "./common/middleware/tenant.middleware";
 import { CommonModule } from "./common/common.module";
 import { EmailModule } from "./infra/email/email.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { UserModule } from "./modules/user/user.module";
 import { BillingModule } from "./modules/billing/billing.module";
 import { JobModule } from "./modules/job/job.module";
 import { PointModule } from "./modules/point/point.module";
+import { WalletModule } from "./modules/wallet/wallet";
 import { AdminModule } from "./modules/admin/admin.module";
 import { PlatformModule } from "./modules/platform/platform.module";
 
@@ -27,8 +29,10 @@ import { PlatformModule } from "./modules/platform/platform.module";
     CommonModule,
     EmailModule,
     AuthModule,
+    UserModule,
     BillingModule,
     PointModule,
+    WalletModule,
     JobModule,
     AdminModule,
     PlatformModule,
@@ -36,6 +40,14 @@ import { PlatformModule } from "./modules/platform/platform.module";
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestIdMiddleware, TenantMiddleware).forRoutes("*");
+    consumer
+      .apply(RequestIdMiddleware, TenantMiddleware)
+      .exclude(
+        "/v1/auth/oauth/google/start",
+        "/v1/auth/oauth/google/callback",
+        "/v1/auth/oauth/kakao/start",
+        "/v1/auth/oauth/kakao/callback"
+      )
+      .forRoutes("*");
   }
 }

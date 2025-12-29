@@ -10,7 +10,7 @@
       "env": {
         "NODE_ENV": "local"
       },
-      "runtimeArgs": ["run", "start:debug"],
+      "runtimeArgs": ["run", "start:debug", "--watch"],
       "ports": 9229,
       "autoAttachChildProcesses": true,
       "restart": true,

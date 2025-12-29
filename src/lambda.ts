@@ -29,7 +29,7 @@ async function bootstrapLambdaProxy() {
 /**
  * AWS Lambda entrypoint that lazily boots and reuses the Nest proxy.
  */
-export const handler = async (event: any, context: any) => {
+export const handler = async (event: unknown, context: unknown) => {
   if (!cachedProxy) {
     cachedProxy = await bootstrapLambdaProxy();
   }

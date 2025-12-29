@@ -5,6 +5,9 @@
 | Function                 | File               | Description                                    | Parameters                              | Return              | Example                                      |
 | ------------------------ | ------------------ | ---------------------------------------------- | --------------------------------------- | ------------------- | -------------------------------------------- |
 | `bootstrap`              | src/main.ts        | Starts Nest + Fastify server for ECS/Fargate   | `()`                                    | `Promise<void>`     | `node dist/main.js`                          |
+| `configureHttp`          | src/main.ts        | Applies logger, validation, filters, and interceptors for Fastify | `app: NestFastifyApplication`          | `void`              | `configureHttp(app)`                         |
+| `setupSwaggerDocs`       | src/main.ts        | Registers Swagger document and UI route        | `app: NestFastifyApplication`           | `void`              | `setupSwaggerDocs(app)`                      |
+| `enableHotReload`        | src/main.ts        | Closes server during HMR reload to prevent port conflicts | `app: NestFastifyApplication`  | `void`              | `enableHotReload(app)`                       |
 | `bootstrapLambdaProxy`   | src/lambda.ts      | Initializes Nest app and caches lambda adapter | `()`                                    | `Promise<Handler>`  | `await bootstrapLambdaProxy()`               |
 | `handler`                | src/lambda.ts      | AWS Lambda handler entrypoint                  | `event: any, context: any`              | `Promise<any>`      | `await handler(event, context)`              |
 
@@ -27,11 +30,19 @@
 
 | Function/Method          | File                                       | Description                                        | Parameters                                  | Return             | Example                                                        |
 | ------------------------ | ------------------------------------------ | -------------------------------------------------- | ------------------------------------------- | ------------------ | -------------------------------------------------------------- |
-| `catch`                  | src/common/filters/http-exception.filter.ts| Wraps errors into JSON envelope with request id    | `exception: unknown`, `host: ArgumentsHost` | `void`             | Used as a global filter                                        |
-| `intercept`              | src/common/interceptors/response.interceptor.ts| Wraps successful responses with `data` + request id | `context: ExecutionContext`, `next: CallHandler` | `Observable<any>` | Used as a global interceptor                                   |
+| `catch`                  | src/common/filters/http-exception.filter.ts| Normalizes errors into `{success:false, error{code,message,details?}, request_id, timestamp}` | `exception: unknown`, `host: ArgumentsHost` | `void`             | Used as a global filter                                        |
+| `intercept`              | src/common/interceptors/response.interceptor.ts| Wraps successful responses with `success`, `data`, `request_id`, `timestamp` | `context: ExecutionContext`, `next: CallHandler` | `Observable<any>` | Used as a global interceptor                                   |
 | `use`                    | src/core/logger/request-id.middleware.ts   | Ensures `X-Request-Id` header and sets `req.id`    | `req`, `res`, `next`                        | `void`             | Registered for all routes                                      |
+| `FastifyPassportGuard`   | src/common/guards/fastify-passport.guard.ts| Returns Passport guard compatible with Fastify responses | `strategy?: string \| string[]`         | `Type<IAuthGuard>` | `@UseGuards(FastifyPassportGuard('google'))`                   |
 | `canActivate`            | src/common/guards/roles.guard.ts           | Simple role check guard                            | `context: ExecutionContext`                 | `boolean`          | Attached via `@UseGuards(RolesGuard)`                          |
 | `Roles` decorator        | src/common/decorators/roles.decorator.ts   | Sets route metadata for required roles             | `...roles: string[]`                        | `CustomDecorator`   | `@Roles('ADMIN')`                                              |
+
+## Common Exceptions
+
+| Function/Method | File                                        | Description                                         | Parameters                                                                                  | Return          | Example                                                                                  |
+| --------------- | ------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------- |
+| `AppException`  | src/common/exceptions/app.exception.ts      | Base HTTP exception with stable `code` and details  | `code: ErrorCode \| string`, `message: string`, `status: HttpStatus`, `details?: Record<string, unknown>` | `AppException`  | `throw new AppException(ERROR_CODE.INTERNAL_ERROR, "Internal error", HttpStatus.INTERNAL_SERVER_ERROR)` |
+| `ERROR_CODE` map| src/common/exceptions/error-codes.ts        | Enum-like map of reusable error codes               | `-`                                                                                         | `Record<string, string>` | `ERROR_CODE.OAUTH_EMAIL_REQUIRED`                                                         |
 
 ## Auth & User
 
@@ -39,15 +50,16 @@
 
 | Function/Method          | File                                   | Description                                    | Parameters                       | Return                                       | Example                               |
 | ------------------------ | -------------------------------------- | ---------------------------------------------- | -------------------------------- | -------------------------------------------- | ------------------------------------- |
-| `requestMagicLink`       | src/modules/auth/auth.service.ts       | Sends magic link email (generates token + code) | `RequestMagicLinkDto`            | `Promise<{message: string, code?: string}>`  | `authService.requestMagicLink(dto)`   |
+| `requestMagicLink`       | src/modules/auth/auth.service.ts       | Sends magic link email (generates token + code) | `appId: string`, `RequestMagicLinkDto`            | `Promise<{message: string, code?: string}>`  | `authService.requestMagicLink(appId, dto)`   |
 | `verifyMagicLink`        | src/modules/auth/auth.service.ts       | Verifies magic link token and issues JWT tokens | `VerifyMagicLinkDto`             | `Promise<{access_token, refresh_token, user}>` | `authService.verifyMagicLink(dto)`    |
-| `oauthStart`             | src/modules/auth/auth.service.ts       | Starts OAuth flow (placeholder, not implemented) | `provider: string`, `req: any`   | `Promise<never>`                             | `authService.oauthStart('google', req)` |
-| `oauthCallback`          | src/modules/auth/auth.service.ts       | Handles OAuth callback (placeholder, not implemented) | `provider: string`, `req: any`   | `Promise<never>`                             | `authService.oauthCallback('google', req)` |
+| `oauthStart`             | src/modules/auth/auth.service.ts       | Starts OAuth flow (handled by Passport guards) | `provider: string`, `req: AppRequest`   | `Promise<void>`                              | `authService.oauthStart('google', req)` |
+| `oauthCallback`          | src/modules/auth/auth.service.ts       | Handles OAuth callback and generates JWT tokens | `provider: string`, `req: AppRequest`   | `Promise<{access_token, refresh_token, user}>` | `authService.oauthCallback('google', req)` |
+| `validateOAuthUser`      | src/modules/auth/auth.service.ts       | Validates OAuth user and creates/links account | `provider: string`, `profile: OAuthProfile`, `appId?: string` | `Promise<UserEntity>`                        | `authService.validateOAuthUser('google', profile, appId)` |
 | `refresh`                | src/modules/auth/auth.service.ts       | Issues new access token from refresh token     | `RefreshTokenDto`                | `Promise<{access_token: string}>`            | `authService.refresh(dto)`            |
 | `logout`                 | src/modules/auth/auth.service.ts       | Revokes refresh token                          | `LogoutDto`                      | `Promise<{message: string}>`                 | `authService.logout(dto)`             |
-| `getMe`                  | src/modules/auth/auth.service.ts       | Retrieves current user profile                 | `user: any`                      | `Promise<UserEntity>`                        | `authService.getMe(req.user)`         |
-| `updateMe`               | src/modules/auth/auth.service.ts       | Updates current user profile                   | `user: any`, `UpdateProfileDto`  | `Promise<UserEntity>`                        | `authService.updateMe(req.user, dto)` |
-| `deleteMe`               | src/modules/auth/auth.service.ts       | Soft-deletes current user                      | `user: any`                      | `Promise<{message: string}>`                 | `authService.deleteMe(req.user)`      |
+| `getMe`                  | src/modules/auth/auth.service.ts       | Retrieves current user profile                 | `user: AuthenticatedUser`                      | `Promise<UserEntity>`                        | `authService.getMe(req.user)`         |
+| `updateMe`               | src/modules/auth/auth.service.ts       | Updates current user profile                   | `user: AuthenticatedUser`, `UpdateProfileDto`  | `Promise<UserEntity>`                        | `authService.updateMe(req.user, dto)` |
+| `deleteMe`               | src/modules/auth/auth.service.ts       | Soft-deletes current user                      | `user: AuthenticatedUser`                      | `Promise<{message: string}>`                 | `authService.deleteMe(req.user)`      |
 
 ### Auth Service (Core Methods)
 
@@ -57,19 +69,76 @@
 | `verifyMagicLinkByCode`  | src/modules/auth/auth.service.ts       | Verifies magic link by 6-digit code            | `appId: string`, `email: string`, `code: string`                  | `Promise<{access_token, refresh_token, user}>` | `authService.verifyMagicLinkByCode(appId, email, code)` |
 | `refreshAccessToken`     | src/modules/auth/auth.service.ts       | Refresh access token using refresh token       | `refreshToken: string`                                            | `Promise<{access_token: string}>`            | `authService.refreshAccessToken(token)`            |
 | `getCurrentUser`         | src/modules/auth/auth.service.ts       | Get user by ID                                 | `userId: string`                                                  | `Promise<UserEntity>`                        | `authService.getCurrentUser(userId)`               |
-| `updateProfile`          | src/modules/auth/auth.service.ts       | Update user profile                            | `userId: string`, `profile: Record<string, any>`                  | `Promise<UserEntity>`                        | `authService.updateProfile(userId, profile)`       |
+| `updateProfile`          | src/modules/auth/auth.service.ts       | Update user profile                            | `userId: string`, `profile: JsonObject`                  | `Promise<UserEntity>`                        | `authService.updateProfile(userId, profile)`       |
 | `deleteAccount`          | src/modules/auth/auth.service.ts       | Soft delete user account                       | `userId: string`                                                  | `Promise<{message: string}>`                 | `authService.deleteAccount(userId)`                |
+
+### OAuth Profile Utilities (Kakao)
+
+| Function/Method              | File                                                       | Description                                       | Parameters                    | Return                      | Example                                                     |
+| ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------- | ----------------------------- | --------------------------- | ----------------------------------------------------------- |
+| `isKakaoProfile`             | src/modules/auth/interfaces/kakao-profile.interface.ts     | Type guard for Kakao profile                      | `profile: unknown`            | `profile is KakaoOAuthProfile` | `if (isKakaoProfile(profile)) { ... }`                      |
+| `extractKakaoEmail`          | src/modules/auth/interfaces/kakao-profile.interface.ts     | Extract email from Kakao profile                  | `profile: KakaoOAuthProfile`  | `string \| undefined`       | `extractKakaoEmail(profile)`                                |
+| `extractKakaoProfileImage`   | src/modules/auth/interfaces/kakao-profile.interface.ts     | Extract profile image URL                         | `profile: KakaoOAuthProfile`  | `string \| undefined`       | `extractKakaoProfileImage(profile)`                         |
+| `extractKakaoThumbnail`      | src/modules/auth/interfaces/kakao-profile.interface.ts     | Extract thumbnail image URL                       | `profile: KakaoOAuthProfile`  | `string \| undefined`       | `extractKakaoThumbnail(profile)`                            |
+| `extractKakaoNickname`       | src/modules/auth/interfaces/kakao-profile.interface.ts     | Extract nickname (never undefined)                | `profile: KakaoOAuthProfile`  | `string`                    | `extractKakaoNickname(profile)`                             |
+| `buildKakaoUserProfile`      | src/modules/auth/interfaces/kakao-profile.interface.ts     | Build complete user profile object                | `profile: KakaoOAuthProfile`  | `KakaoUserProfileData`      | `buildKakaoUserProfile(profile)`                            |
+
+### OAuth Profile Utilities (Google)
+
+| Function/Method              | File                                                       | Description                                       | Parameters                    | Return                      | Example                                                     |
+| ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------- | ----------------------------- | --------------------------- | ----------------------------------------------------------- |
+| `isGoogleProfile`            | src/modules/auth/interfaces/google-profile.interface.ts    | Type guard for Google profile                     | `profile: unknown`            | `profile is GoogleOAuthProfile` | `if (isGoogleProfile(profile)) { ... }`                     |
+| `extractGoogleEmail`         | src/modules/auth/interfaces/google-profile.interface.ts    | Extract email from Google profile                 | `profile: GoogleOAuthProfile` | `string \| undefined`       | `extractGoogleEmail(profile)`                               |
+| `extractGoogleVerifiedEmail` | src/modules/auth/interfaces/google-profile.interface.ts    | Extract verified email only                       | `profile: GoogleOAuthProfile` | `string \| undefined`       | `extractGoogleVerifiedEmail(profile)`                       |
+| `extractGooglePhoto`         | src/modules/auth/interfaces/google-profile.interface.ts    | Extract profile photo URL                         | `profile: GoogleOAuthProfile` | `string \| undefined`       | `extractGooglePhoto(profile)`                               |
+| `extractGoogleDisplayName`   | src/modules/auth/interfaces/google-profile.interface.ts    | Extract display name (never undefined)            | `profile: GoogleOAuthProfile` | `string`                    | `extractGoogleDisplayName(profile)`                         |
+| `buildGoogleUserProfile`     | src/modules/auth/interfaces/google-profile.interface.ts    | Build complete user profile object                | `profile: GoogleOAuthProfile` | `GoogleUserProfileData`     | `buildGoogleUserProfile(profile)`                           |
+
+### OAuth Profile Utilities (Generic)
+
+| Function/Method              | File                                                       | Description                                       | Parameters                    | Return                      | Example                                                     |
+| ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------- | ----------------------------- | --------------------------- | ----------------------------------------------------------- |
+| `getOAuthProvider`           | src/modules/auth/interfaces/oauth-profile.interface.ts     | Get provider type from profile                    | `profile: OAuthProfile`       | `OAuthProviderType`         | `getOAuthProvider(profile)`                                 |
+| `extractOAuthUserId`         | src/modules/auth/interfaces/oauth-profile.interface.ts     | Extract provider user ID (normalized to string)   | `profile: OAuthProfile`       | `string`                    | `extractOAuthUserId(profile)`                               |
+
+### Auth Exceptions
+
+| Function/Method                      | File                                                | Description                                       | Parameters          | Return                                  | Example                                                     |
+| ------------------------------------ | --------------------------------------------------- | ------------------------------------------------- | ------------------- | --------------------------------------- | ----------------------------------------------------------- |
+| `OAuthEmailRequiredException`        | src/modules/auth/exceptions/oauth.exceptions.ts     | Thrown when OAuth provider omits an email address | `provider: string`  | `OAuthEmailRequiredException`           | `throw new OAuthEmailRequiredException("google")`           |
+| `OAuthProviderConfigMissingException`| src/modules/auth/exceptions/oauth.exceptions.ts     | Thrown when required OAuth client config is absent| `provider: string`  | `OAuthProviderConfigMissingException`   | `throw new OAuthProviderConfigMissingException("kakao")`    |
+
+### User Service
+
+| Function/Method  | File                                       | Description                       | Parameters                                        | Return                            | Example                                    |
+| ---------------- | ------------------------------------------ | --------------------------------- | ------------------------------------------------- | --------------------------------- | ------------------------------------------ |
+| `findAll`        | src/modules/user/user.service.ts           | List all users for app            | `appId: string`                                   | `Promise<UserResponseDto[]>`      | `userService.findAll(appId)`               |
+| `findOne`        | src/modules/user/user.service.ts           | Find user by ID                   | `userId: string`                                  | `Promise<UserResponseDto>`        | `userService.findOne(userId)`              |
+| `create`         | src/modules/user/user.service.ts           | Create new user                   | `appId: string`, `CreateUserDto`                  | `Promise<UserResponseDto>`        | `userService.create(appId, dto)`           |
+| `update`         | src/modules/user/user.service.ts           | Update user                       | `userId: string`, `UpdateUserDto`                 | `Promise<UserResponseDto>`        | `userService.update(userId, dto)`          |
+| `remove`         | src/modules/user/user.service.ts           | Soft delete user                  | `userId: string`                                  | `Promise<void>`                   | `userService.remove(userId)`               |
 
 ### User Repository
 
 | Function/Method  | File                                       | Description                       | Parameters                                        | Return                            | Example                                    |
 | ---------------- | ------------------------------------------ | --------------------------------- | ------------------------------------------------- | --------------------------------- | ------------------------------------------ |
-| `findById`       | src/modules/auth/repositories/user.repository.ts | Find user by ID                   | `id: string`                                      | `Promise<UserEntity \| null>`     | `userRepo.findById(id)`                    |
-| `findByEmail`    | src/modules/auth/repositories/user.repository.ts | Find user by email within app     | `appId: string`, `email: string`                  | `Promise<UserEntity \| null>`     | `userRepo.findByEmail(appId, email)`       |
-| `create`         | src/modules/auth/repositories/user.repository.ts | Create new user                   | `data: {appId, email, profile?}`                  | `Promise<UserEntity>`             | `userRepo.create(data)`                    |
-| `updateProfile`  | src/modules/auth/repositories/user.repository.ts | Update user profile               | `userId: string`, `profile: Record<string, any>`  | `Promise<UserEntity>`             | `userRepo.updateProfile(userId, profile)`  |
-| `updateStatus`   | src/modules/auth/repositories/user.repository.ts | Update user status                | `userId: string`, `status: UserStatus`            | `Promise<void>`                   | `userRepo.updateStatus(userId, status)`    |
-| `softDelete`     | src/modules/auth/repositories/user.repository.ts | Soft delete user (set to DELETED) | `userId: string`                                  | `Promise<void>`                   | `userRepo.softDelete(userId)`              |
+| `findById`       | src/modules/user/repositories/user.repository.ts | Find user by ID                   | `id: string`                                      | `Promise<UserEntity \| null>`     | `userRepo.findById(id)`                    |
+| `findByIdWithDto` | src/modules/user/repositories/user.repository.ts | Find user by ID and return DTO   | `id: string`                                      | `Promise<UserResponseDto \| null>`| `userRepo.findByIdWithDto(id)`             |
+| `findByEmail`    | src/modules/user/repositories/user.repository.ts | Find user by email within app     | `appId: string`, `email: string`                  | `Promise<UserEntity \| null>`     | `userRepo.findByEmail(appId, email)`       |
+| `findAllByApp`   | src/modules/user/repositories/user.repository.ts | Find all users for app            | `appId: string`                                   | `Promise<UserResponseDto[]>`      | `userRepo.findAllByApp(appId)`             |
+| `create`         | src/modules/user/repositories/user.repository.ts | Create new user                   | `data: {appId, email, profile?, role?}`           | `Promise<UserEntity>`             | `userRepo.create(data)`                    |
+| `update`         | src/modules/user/repositories/user.repository.ts | Update user                       | `userId: string`, `data: Partial<{...}>`          | `Promise<UserResponseDto>`        | `userRepo.update(userId, data)`            |
+| `updateProfile`  | src/modules/user/repositories/user.repository.ts | Update user profile               | `userId: string`, `profile: JsonObject`  | `Promise<UserEntity>`             | `userRepo.updateProfile(userId, profile)`  |
+| `updateStatus`   | src/modules/user/repositories/user.repository.ts | Update user status                | `userId: string`, `status: UserStatus`            | `Promise<void>`                   | `userRepo.updateStatus(userId, status)`    |
+| `softDelete`     | src/modules/user/repositories/user.repository.ts | Soft delete user (set to DELETED) | `userId: string`                                  | `Promise<void>`                   | `userRepo.softDelete(userId)`              |
+
+### OAuth Provider Repository
+
+| Function/Method               | File                                              | Description                              | Parameters                                                          | Return                                   | Example                                           |
+| ----------------------------- | ------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------- |
+| `findByAppProviderAndUserId`  | src/modules/auth/repositories/oauth-provider.repository.ts | Find OAuth provider by app + provider + provider user ID | `appId: string`, `provider: string`, `providerUserId: string`                        | `Promise<OAuthProviderEntity \| null>`   | `oauthRepo.findByAppProviderAndUserId(appId, 'google', '123')` |
+| `findByUserId`                | src/modules/auth/repositories/oauth-provider.repository.ts | Find all OAuth providers for user        | `userId: string`                                                    | `Promise<OAuthProviderEntity[]>`         | `oauthRepo.findByUserId(userId)`                  |
+| `create`                      | src/modules/auth/repositories/oauth-provider.repository.ts | Create OAuth provider link               | `data: {appId, userId, provider, providerUserId, email?, profile: JsonObject}`        | `Promise<OAuthProviderEntity>`           | `oauthRepo.create(data)`                          |
 
 ### Refresh Token Repository
 
@@ -105,12 +174,12 @@
 
 ### Wallet Service
 
-| Function/Method | File                                   | Description                                  | Parameters                                 | Return | Example                          |
-| --------------- | -------------------------------------- | -------------------------------------------- | ------------------------------------------ | ------ | -------------------------------- |
-| `credit`        | src/modules/wallet/wallet.service.ts   | Credit wallet (placeholder)                  | `CreditWalletDto`                          | `never` | `walletService.credit(dto)`     |
-| `debit`         | src/modules/wallet/wallet.service.ts   | Debit wallet (placeholder)                   | `DebitWalletDto`                           | `never` | `walletService.debit(dto)`      |
-| `getBalance`    | src/modules/wallet/wallet.service.ts   | Get wallet balance (placeholder)             | `WalletBalanceQueryDto`                    | `never` | `walletService.getBalance(q)`   |
-| `getLedger`     | src/modules/wallet/wallet.service.ts   | Get wallet ledger (placeholder)              | `WalletLedgerQueryDto`                     | `never` | `walletService.getLedger(q)`    |
+| Function/Method | File                                   | Description                                  | Parameters                                 | Return                                  | Example                          |
+| --------------- | -------------------------------------- | -------------------------------------------- | ------------------------------------------ | --------------------------------------- | -------------------------------- |
+| `credit`        | src/modules/wallet/wallet.service.ts   | Credit wallet (delegates to PointService)    | `CreditWalletDto`                          | `Promise<WalletLedgerEntity>`           | `walletService.credit(dto)`      |
+| `debit`         | src/modules/wallet/wallet.service.ts   | Debit wallet (delegates to PointService)     | `DebitWalletDto`                           | `Promise<WalletLedgerEntity[]>`         | `walletService.debit(dto)`       |
+| `getBalance`    | src/modules/wallet/wallet.service.ts   | Get wallet balance (delegates to PointService) | `WalletBalanceQueryDto`                  | `Promise<{balance: string, balanceNumber: number}>` | `walletService.getBalance(q)`   |
+| `getLedger`     | src/modules/wallet/wallet.service.ts   | Get wallet ledger (delegates to PointService) | `WalletLedgerQueryDto`                   | `Promise<{entries: WalletLedgerEntity[], total: number}>` | `walletService.getLedger(q)`    |
 
 ### Wallet Lot Repository
 

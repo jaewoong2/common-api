@@ -3,21 +3,45 @@ import {
   Logger,
   NotFoundException,
   UnauthorizedException,
-  NotImplementedException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as crypto from 'crypto';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as crypto from "crypto";
+import { AppRequest } from "@common/interfaces/app-request.interface";
+import { JsonObject } from "@common/types/json-value.type";
 import {
   RequestMagicLinkDto,
   VerifyMagicLinkDto,
   RefreshTokenDto,
   LogoutDto,
   UpdateProfileDto,
-} from './dto/auth.dto';
-import { UserRepository } from './repositories/user.repository';
-import { RefreshTokenRepository } from './repositories/refresh-token.repository';
-import { MagicLinkTokenRepository } from './repositories/magic-link-token.repository';
-import { UserEntity } from '../../database/entities/user.entity';
+} from "./dto/auth.dto";
+import { UserRepository } from "../user/repositories/user.repository";
+import { RefreshTokenRepository } from "./repositories/refresh-token.repository";
+import { MagicLinkTokenRepository } from "./repositories/magic-link-token.repository";
+import { OAuthProviderRepository } from "./repositories/oauth-provider.repository";
+import { EmailService } from "../../infra/email/email.service";
+import { UserEntity } from "../../database/entities/user.entity";
+import { AuthenticatedUser } from "./interfaces/auth-user.interface";
+import {
+  OAuthProfile,
+  extractOAuthUserId,
+} from "./interfaces/oauth-profile.interface";
+import {
+  isKakaoProfile,
+  extractKakaoEmail,
+  extractKakaoNickname,
+  extractKakaoProfileImage,
+  buildKakaoUserProfile,
+} from "./interfaces/kakao-profile.interface";
+import {
+  isGoogleProfile,
+  extractGoogleEmail,
+  extractGoogleDisplayName,
+  extractGooglePhoto,
+  buildGoogleUserProfile,
+} from "./interfaces/google-profile.interface";
+import { DEFAULT_APP_ID } from "./constants/auth.constants";
+import { OAuthEmailRequiredException } from "./exceptions/oauth.exceptions";
 
 /**
  * Auth Service
@@ -28,7 +52,7 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   // Token expiry configurations
-  private readonly ACCESS_TOKEN_EXPIRY = '15m';
+  private readonly ACCESS_TOKEN_EXPIRY = "15m";
   private readonly REFRESH_TOKEN_EXPIRY_DAYS = 30;
   private readonly MAGIC_LINK_EXPIRY_MINUTES = 15;
 
@@ -36,7 +60,9 @@ export class AuthService {
     private readonly userRepository: UserRepository,
     private readonly refreshTokenRepository: RefreshTokenRepository,
     private readonly magicLinkRepository: MagicLinkTokenRepository,
+    private readonly oauthProviderRepository: OAuthProviderRepository,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService
   ) {}
 
   /**
@@ -45,9 +71,9 @@ export class AuthService {
    * @returns Success message with code in development
    */
   async requestMagicLink(
-    dto: RequestMagicLinkDto,
+    appId: string,
+    dto: RequestMagicLinkDto
   ): Promise<{ message: string; code?: string }> {
-    const appId = (dto as any).appId || 'default';
     return this._requestMagicLink(appId, dto.email, dto.redirect_url);
   }
 
@@ -61,21 +87,227 @@ export class AuthService {
   }
 
   /**
-   * OAuth start (placeholder - not implemented yet)
+   * OAuth start - Redirect to provider (handled by Passport guard)
    */
-  async oauthStart(provider: string, req: any) {
-    throw new NotImplementedException(
-      `OAuth for ${provider} not implemented yet`,
-    );
+  async oauthStart(provider: string, req: AppRequest) {
+    // This method is just a placeholder - actual redirect is handled by Passport guard
+    // No implementation needed here
   }
 
   /**
-   * OAuth callback (placeholder - not implemented yet)
+   * OAuth callback - Generate JWT tokens after successful OAuth
+   * @param provider OAuth provider name
+   * @param req Request with user from Passport
+   * @returns JWT tokens and user
    */
-  async oauthCallback(provider: string, req: any) {
-    throw new NotImplementedException(
-      `OAuth callback for ${provider} not implemented yet`,
+  async oauthCallback(provider: string, req: AppRequest<UserEntity>) {
+    const user = req.user;
+    return this.generateTokens(user);
+  }
+
+  /**
+   * Validate OAuth user - Create or link OAuth account
+   * @param provider OAuth provider name (google, kakao)
+   * @param profile OAuth profile from provider
+   * @param appId Tenant app id derived from OAuth state
+   * @returns UserEntity
+   */
+  async validateOAuthUser(
+    provider: string,
+    profile: OAuthProfile,
+    appId?: string
+  ): Promise<UserEntity> {
+    const resolvedAppId = this.resolveAppId(appId);
+    const providerUserId = extractOAuthUserId(profile);
+
+    this.logger.log(
+      `Validating OAuth user from ${provider}: ${providerUserId}`
     );
+
+    const email = this.extractEmailFromProfile(provider, profile);
+
+    const linkedUser = await this.findLinkedOAuthUser(
+      resolvedAppId,
+      provider,
+      providerUserId
+    );
+    if (linkedUser) {
+      return linkedUser;
+    }
+
+    const user = await this.findOrCreateOAuthUser(
+      resolvedAppId,
+      email,
+      profile
+    );
+
+    await this.linkOAuthProvider(
+      resolvedAppId,
+      user.id,
+      provider,
+      providerUserId,
+      email,
+      profile
+    );
+
+    return user;
+  }
+
+  private resolveAppId(appId?: string): string {
+    return appId ?? DEFAULT_APP_ID;
+  }
+
+  /**
+   * Extract email from OAuth profile (type-safe)
+   * @private
+   */
+  private extractEmailFromProfile(
+    provider: string,
+    profile: OAuthProfile
+  ): string {
+    let email: string | undefined;
+
+    if (isKakaoProfile(profile)) {
+      email = extractKakaoEmail(profile);
+
+      // Kakao: Generate fallback email if not provided
+      if (!email) {
+        const kakaoId = profile._json.id;
+        email = `${kakaoId}@kakao.com`;
+        this.logger.warn(
+          `Kakao email not provided for user ${kakaoId}, using fallback: ${email}`
+        );
+      }
+    } else if (isGoogleProfile(profile)) {
+      email = extractGoogleEmail(profile);
+
+      // Google: Email is required
+      if (!email) {
+        throw new OAuthEmailRequiredException(provider);
+      }
+    }
+
+    return email;
+  }
+
+  private async findLinkedOAuthUser(
+    appId: string,
+    provider: string,
+    providerUserId: string
+  ): Promise<UserEntity | null> {
+    const existingOAuthLink =
+      await this.oauthProviderRepository.findByAppProviderAndUserId(
+        appId,
+        provider,
+        providerUserId
+      );
+
+    if (!existingOAuthLink) {
+      return null;
+    }
+
+    this.logger.log(
+      `Found existing OAuth link for ${provider}:${providerUserId}`
+    );
+    const user = await this.userRepository.findById(existingOAuthLink.userId);
+
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
+
+    return user;
+  }
+
+  private async findOrCreateOAuthUser(
+    appId: string,
+    email: string,
+    profile: OAuthProfile
+  ): Promise<UserEntity> {
+    const existingUser = await this.userRepository.findByEmail(appId, email);
+
+    if (existingUser) {
+      return existingUser;
+    }
+
+    this.logger.log(`Creating new user via OAuth: ${email}`);
+    return this.userRepository.create({
+      appId,
+      email,
+      profile: this.buildProfileFromOAuth(profile),
+    });
+  }
+
+  /**
+   * Build user profile object from OAuth data (type-safe)
+   * @private
+   */
+  private buildProfileFromOAuth(profile: OAuthProfile): JsonObject {
+    if (isKakaoProfile(profile)) {
+      const kakaoProfile = buildKakaoUserProfile(profile);
+      return {
+        displayName: kakaoProfile.displayName,
+        photo: kakaoProfile.photo,
+        thumbnail: kakaoProfile.thumbnail,
+        isDefaultImage: kakaoProfile.isDefaultImage,
+        isDefaultNickname: kakaoProfile.isDefaultNickname,
+      };
+    }
+
+    // Must be Google profile (discriminated union)
+    const googleProfile = buildGoogleUserProfile(profile);
+    return {
+      displayName: googleProfile.displayName,
+      photo: googleProfile.photo,
+      emailVerified: googleProfile.emailVerified,
+      givenName: googleProfile.givenName,
+      familyName: googleProfile.familyName,
+      locale: googleProfile.locale,
+    };
+  }
+
+  /**
+   * Build provider-specific profile data for storage (type-safe)
+   * @private
+   */
+  private buildProviderProfile(profile: OAuthProfile): JsonObject {
+    if (isKakaoProfile(profile)) {
+      return {
+        id: profile._json.id,
+        connected_at: profile._json.connected_at,
+        properties: profile._json.properties,
+        kakao_account: profile._json.kakao_account,
+      };
+    }
+
+    // Must be Google profile (discriminated union)
+    return {
+      sub: profile._json.sub,
+      name: profile._json.name,
+      given_name: profile._json.given_name,
+      family_name: profile._json.family_name,
+      picture: profile._json.picture,
+      email: profile._json.email,
+      email_verified: profile._json.email_verified,
+      locale: profile._json.locale,
+    };
+  }
+
+  private async linkOAuthProvider(
+    appId: string,
+    userId: string,
+    provider: string,
+    providerUserId: string,
+    email: string,
+    profile: OAuthProfile
+  ): Promise<void> {
+    await this.oauthProviderRepository.create({
+      appId,
+      userId,
+      provider,
+      providerUserId,
+      email,
+      profile: this.buildProviderProfile(profile),
+    });
   }
 
   /**
@@ -101,7 +333,7 @@ export class AuthService {
    * @param user - User from JWT
    * @returns User entity
    */
-  async getMe(user: any) {
+  async getMe(user: AuthenticatedUser) {
     return this.getCurrentUser(user.id);
   }
 
@@ -111,8 +343,9 @@ export class AuthService {
    * @param dto - Update profile DTO
    * @returns Updated user
    */
-  async updateMe(user: any, dto: UpdateProfileDto) {
-    return this.updateProfile(user.id, dto);
+  async updateMe(user: AuthenticatedUser, dto: UpdateProfileDto) {
+    const profilePayload: JsonObject = { ...dto };
+    return this.updateProfile(user.id, profilePayload);
   }
 
   /**
@@ -120,7 +353,7 @@ export class AuthService {
    * @param user - User from JWT
    * @returns Success message
    */
-  async deleteMe(user: any) {
+  async deleteMe(user: AuthenticatedUser) {
     return this.deleteAccount(user.id);
   }
 
@@ -131,37 +364,47 @@ export class AuthService {
   private async _requestMagicLink(
     appId: string,
     email: string,
-    redirectUrl?: string,
+    redirectUrl?: string
   ): Promise<{ message: string; code?: string }> {
     this.logger.log(`Requesting magic link for ${email} in app ${appId}`);
 
-    const plainToken = crypto.randomBytes(32).toString('hex');
     const verificationCode =
       this.magicLinkRepository.generateVerificationCode();
 
     const expiresAt = new Date();
     expiresAt.setMinutes(
-      expiresAt.getMinutes() + this.MAGIC_LINK_EXPIRY_MINUTES,
+      expiresAt.getMinutes() + this.MAGIC_LINK_EXPIRY_MINUTES
     );
 
     await this.magicLinkRepository.create({
       appId,
       email,
-      plainToken,
       verificationCode,
       redirectUrl,
       expiresAt,
     });
 
-    const magicLink = `${redirectUrl}?token=${plainToken}`;
-    this.logger.log(`[EMAIL PLACEHOLDER] Magic link for ${email}:`);
-    this.logger.log(`Link: ${magicLink}`);
-    this.logger.log(`Code: ${verificationCode}`);
+    // Send magic link email via AWS SES
+    try {
+      await this.emailService.sendMagicLinkEmail(
+        email,
+        verificationCode,
+        redirectUrl
+      );
+      this.logger.log(`Magic link email sent successfully to ${email}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send magic link email to ${email}`,
+        error.stack
+      );
+      // Don't block auth flow - token is already saved in DB
+      // User can still verify via code if email fails
+    }
 
-    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const isDevelopment = process.env.NODE_ENV !== "production";
 
     return {
-      message: 'Magic link sent to your email',
+      message: "Magic link sent to your email",
       ...(isDevelopment && { code: verificationCode }),
     };
   }
@@ -179,18 +422,18 @@ export class AuthService {
     const magicLinkToken = await this.magicLinkRepository.findByToken(token);
 
     if (!magicLinkToken) {
-      throw new UnauthorizedException('Invalid or expired magic link token');
+      throw new UnauthorizedException("Invalid or expired magic link token");
     }
 
     if (new Date() > magicLinkToken.expiresAt) {
-      throw new UnauthorizedException('Magic link has expired');
+      throw new UnauthorizedException("Magic link has expired");
     }
 
     await this.magicLinkRepository.markAsUsed(magicLinkToken.id);
 
     const user = await this.findOrCreateUser(
       magicLinkToken.appId,
-      magicLinkToken.email,
+      magicLinkToken.email
     );
 
     return this.generateTokens(user);
@@ -202,7 +445,7 @@ export class AuthService {
   async verifyMagicLinkByCode(
     appId: string,
     email: string,
-    code: string,
+    code: string
   ): Promise<{
     access_token: string;
     refresh_token: string;
@@ -213,15 +456,15 @@ export class AuthService {
     const magicLinkToken = await this.magicLinkRepository.findByEmailAndCode(
       appId,
       email,
-      code,
+      code
     );
 
     if (!magicLinkToken) {
-      throw new UnauthorizedException('Invalid or expired verification code');
+      throw new UnauthorizedException("Invalid or expired verification code");
     }
 
     if (new Date() > magicLinkToken.expiresAt) {
-      throw new UnauthorizedException('Verification code has expired');
+      throw new UnauthorizedException("Verification code has expired");
     }
 
     await this.magicLinkRepository.markAsUsed(magicLinkToken.id);
@@ -243,17 +486,17 @@ export class AuthService {
       await this.refreshTokenRepository.findValidToken(refreshToken);
 
     if (!tokenEntity) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException("Invalid refresh token");
     }
 
     if (new Date() > tokenEntity.expiresAt) {
-      throw new UnauthorizedException('Refresh token has expired');
+      throw new UnauthorizedException("Refresh token has expired");
     }
 
     const user = await this.userRepository.findById(tokenEntity.userId);
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException("User not found");
     }
 
     const payload = {
@@ -282,7 +525,7 @@ export class AuthService {
     await this.refreshTokenRepository.revoke(refreshToken);
 
     return {
-      message: 'Logged out successfully',
+      message: "Logged out successfully",
     };
   }
 
@@ -293,7 +536,7 @@ export class AuthService {
     const user = await this.userRepository.findById(userId);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     return user;
@@ -304,14 +547,14 @@ export class AuthService {
    */
   async updateProfile(
     userId: string,
-    profile: Record<string, any>,
+    profile: JsonObject
   ): Promise<UserEntity> {
     this.logger.log(`Updating profile for user ${userId}`);
 
     const user = await this.userRepository.findById(userId);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     return this.userRepository.updateProfile(userId, profile);
@@ -326,14 +569,14 @@ export class AuthService {
     const user = await this.userRepository.findById(userId);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
     await this.userRepository.softDelete(userId);
     await this.refreshTokenRepository.revokeAllForUser(userId);
 
     return {
-      message: 'Account deleted successfully',
+      message: "Account deleted successfully",
     };
   }
 
@@ -343,7 +586,7 @@ export class AuthService {
    */
   private async findOrCreateUser(
     appId: string,
-    email: string,
+    email: string
   ): Promise<UserEntity> {
     let user = await this.userRepository.findByEmail(appId, email);
 
@@ -378,7 +621,7 @@ export class AuthService {
       expiresIn: this.ACCESS_TOKEN_EXPIRY,
     });
 
-    const refreshToken = crypto.randomBytes(32).toString('hex');
+    const refreshToken = crypto.randomBytes(32).toString("hex");
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + this.REFRESH_TOKEN_EXPIRY_DAYS);

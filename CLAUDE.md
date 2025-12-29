@@ -633,6 +633,260 @@ export class UserResponseDto {
 
 ---
 
+## Swagger Documentation Rules
+
+### 🔴 CRITICAL: ALL DTOs MUST have @ApiProperty with example values
+
+Every DTO field MUST include `@ApiProperty` decorator with realistic example values for Swagger UI auto-fill.
+
+### Required @ApiProperty Parameters
+
+```typescript
+@ApiProperty({
+  example: 'realistic_value_here',        // 🔴 MANDATORY - Shows in Swagger UI
+  description: 'Clear field description', // 🟡 RECOMMENDED - Explains purpose
+  required: false,                        // 🟢 OPTIONAL - If field is optional
+  type: String,                           // 🟢 OPTIONAL - Explicit type (for complex types)
+  enum: SomeEnum,                         // 🟢 OPTIONAL - If field uses enum
+  nullable: true,                         // 🟢 OPTIONAL - If field can be null
+})
+```
+
+### Example Value Guidelines by Type
+
+| Type | Example Value | Usage |
+|------|---------------|-------|
+| UUID | `'550e8400-e29b-41d4-a716-446655440000'` | User IDs, Order IDs, etc. |
+| Email | `'user@example.com'` | Email addresses |
+| URL | `'https://example.com/callback'` | Callback URLs, redirects |
+| ISO DateTime | `'2025-01-01T00:00:00.000Z'` | Timestamps, dates |
+| Reason/Description | `'Payment for subscription'` | Human-readable reasons |
+| Amount (integer) | `1000` | Prices, balances (in cents) |
+| Limit (integer) | `10` | Pagination limits |
+| Cursor (string) | `'eyJpZCI6IDE0fQ=='` | Pagination cursors (base64) |
+| Method Enum | `'POST'` or `'PUT'` | HTTP methods |
+| Status Enum | `'PENDING'` or `'ACTIVE'` | Status values |
+| Array | `['value1', 'value2']` | Lists of items |
+| JSONB Object | `{ key: 'value', nested: { data: 'example' } }` | Complex objects |
+| Boolean | `true` | Flags, toggles |
+
+### DTO Examples (MUST FOLLOW)
+
+#### ✅ CORRECT - Create DTO with full documentation
+
+```typescript
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsString, IsNotEmpty, IsOptional, IsUrl } from 'class-validator';
+
+export class RequestMagicLinkDto {
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'User email address for authentication'
+  })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @ApiProperty({
+    example: 'https://example.com/auth/callback',
+    description: 'URL to redirect after successful authentication',
+    required: false,
+    nullable: true,
+  })
+  @IsUrl()
+  @IsOptional()
+  redirect_url?: string;
+}
+```
+
+#### ✅ CORRECT - Update DTO with optional fields
+
+```typescript
+export class UpdateAppDto {
+  @ApiProperty({
+    example: 'https://api.example.com/webhooks',
+    description: 'Base URL for callback endpoints',
+    required: false,
+  })
+  @IsUrl()
+  @IsOptional()
+  callback_base_url?: string;
+
+  @ApiProperty({
+    example: ['/payment/success', '/payment/failed'],
+    description: 'Allowed callback paths',
+    type: [String],
+    required: false,
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  callback_allowlist_paths?: string[];
+}
+```
+
+#### ✅ CORRECT - Response DTO with complex types
+
+```typescript
+export class WalletBalanceResponseDto {
+  @ApiProperty({
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    description: 'User unique identifier'
+  })
+  user_id: string;
+
+  @ApiProperty({
+    example: 15000,
+    description: 'Current wallet balance in cents'
+  })
+  balance: number;
+
+  @ApiProperty({
+    example: '2025-01-01T00:00:00.000Z',
+    description: 'Timestamp of last balance update'
+  })
+  updated_at: string;
+}
+```
+
+#### ✅ CORRECT - DTO with Enums
+
+```typescript
+import { HttpMethod } from '@common/enums/http-method.enum';
+
+export class CreateCallbackJobDto {
+  @ApiProperty({
+    example: 'POST',
+    enum: HttpMethod,
+    description: 'HTTP method for callback request'
+  })
+  @IsEnum(HttpMethod)
+  method: HttpMethod;
+
+  @ApiProperty({
+    example: '/webhooks/payment',
+    description: 'Callback endpoint path'
+  })
+  @IsString()
+  path: string;
+
+  @ApiProperty({
+    example: { order_id: '123', status: 'completed' },
+    description: 'Request body payload',
+    type: 'object',
+    nullable: true,
+  })
+  @IsOptional()
+  body?: Record<string, any>;
+}
+```
+
+#### ❌ WRONG - Missing @ApiProperty
+
+```typescript
+// ❌ WRONG - No Swagger documentation
+export class CreateOrderDto {
+  @IsUUID()
+  user_id: string;  // Missing @ApiProperty
+
+  @IsNumber()
+  price_id: number;  // Missing @ApiProperty
+
+  @IsPositive()
+  quantity: number;  // Missing @ApiProperty
+}
+```
+
+### Controller Documentation (MUST FOLLOW)
+
+Every controller endpoint MUST have proper Swagger decorators:
+
+```typescript
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+
+@ApiTags('auth')  // 🔴 MANDATORY - Groups endpoints in Swagger
+@Controller('auth')
+export class AuthController {
+
+  @Post('magic-link/request')
+  @ApiOperation({ summary: 'Request magic link for email authentication' })  // 🔴 MANDATORY
+  @ApiResponse({ status: 200, description: 'Magic link sent successfully' })  // 🟡 RECOMMENDED
+  @ApiResponse({ status: 400, description: 'Invalid email format' })          // 🟡 RECOMMENDED
+  async requestMagicLink(@Body() dto: RequestMagicLinkDto) {
+    return this.authService.requestMagicLink(dto);
+  }
+
+  @Post('magic-link/verify')
+  @ApiOperation({ summary: 'Verify magic link token and authenticate user' })
+  @ApiResponse({ status: 200, type: AuthResponseDto })  // 🟡 RECOMMENDED - Include response type
+  @ApiResponse({ status: 401, description: 'Invalid or expired token' })
+  async verifyMagicLink(@Body() dto: VerifyMagicLinkDto) {
+    return this.authService.verifyMagicLink(dto);
+  }
+}
+```
+
+### Checklist for New DTO Creation
+
+When creating a new DTO, AI MUST:
+
+- [ ] Add `@ApiProperty` to EVERY field
+- [ ] Provide realistic `example` values for Swagger UI
+- [ ] Add clear `description` for each field
+- [ ] Mark optional fields with `required: false`
+- [ ] Use `enum` parameter for enum types
+- [ ] Use `type` parameter for arrays and complex objects
+- [ ] Mark nullable fields with `nullable: true`
+- [ ] Update controller with `@ApiOperation` and `@ApiResponse`
+- [ ] Update `docs/DTO_SCHEMA.md` with new DTO
+
+### Common Patterns Reference
+
+```typescript
+// UUID field
+@ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
+id: string;
+
+// Email field
+@ApiProperty({ example: 'user@example.com', description: 'User email' })
+email: string;
+
+// URL field
+@ApiProperty({ example: 'https://example.com/callback' })
+callback_url: string;
+
+// Timestamp field
+@ApiProperty({ example: '2025-01-01T00:00:00.000Z' })
+created_at: string;
+
+// Integer amount
+@ApiProperty({ example: 1000, description: 'Amount in cents' })
+amount: number;
+
+// Optional field
+@ApiProperty({ example: 'optional value', required: false })
+@IsOptional()
+optional_field?: string;
+
+// Enum field
+@ApiProperty({ example: 'ACTIVE', enum: UserStatus })
+status: UserStatus;
+
+// Array field
+@ApiProperty({ example: ['item1', 'item2'], type: [String] })
+items: string[];
+
+// JSONB field
+@ApiProperty({
+  example: { key: 'value', nested: { data: 'example' } },
+  type: 'object',
+  nullable: true,
+})
+metadata?: Record<string, any>;
+```
+
+---
+
 ## Testing Rules
 
 ### Unit Test Structure
@@ -757,6 +1011,12 @@ async findOne(id: number): Promise<UserResponseDto | null> {
 ---
 
 ## Anti-Patterns (NEVER DO)
+
+### ❌ DON'T: Do not use Any Type For anything
+ALWAYS avoid the use of the `any` type in all TypeScript code, regardless of context.
+
+Instead, Use Type, Interface In Package > If not exist, Define Type, Interface
+
 
 ### ❌ DON'T: Return Entity from Repository
 

@@ -1,4 +1,6 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
+import { AppRequest } from '@common/interfaces/app-request.interface';
 
 /**
  * Resolves tenant appId from the Host header and attaches it to the request.
@@ -6,7 +8,7 @@ import { Injectable, NestMiddleware } from '@nestjs/common';
  */
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
-  use(req: any, _: any, next: () => void) {
+  use(req: AppRequest, _: FastifyReply, next: () => void) {
     const host: string = req.headers.host || '';
     const appId = host.split('.')[0] || 'platform';
     req.appId = appId;

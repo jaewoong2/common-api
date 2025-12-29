@@ -5,6 +5,7 @@ import {
 } from 'typeorm';
 import { BaseEntity } from '../../core/database/base.entity';
 import { JobType, JobStatus } from '../../common/enums';
+import { JsonObject } from '@common/types/json-value.type';
 
 /**
  * Job Entity
@@ -46,7 +47,7 @@ export class JobEntity extends BaseEntity {
    * @note Also stores HMAC signature for reuse
    */
   @Column({ type: 'jsonb' })
-  payload: Record<string, any>;
+  payload: JsonObject;
 
   /**
    * Current retry count

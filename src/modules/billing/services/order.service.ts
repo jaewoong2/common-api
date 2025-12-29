@@ -32,9 +32,11 @@ export class OrderService {
    * @param dto - Create order DTO
    * @returns Created order entity
    */
-  async createOrder(dto: CreateOrderDto): Promise<OrderEntity> {
-    const appId = (dto as any).appId || 'default';
-    const idempotencyKey = (dto as any).idempotency_key;
+  async createOrder(
+    appId: string,
+    dto: CreateOrderDto,
+  ): Promise<OrderEntity> {
+    const idempotencyKey = dto.idempotency_key;
     return this._createOrder(
       appId,
       dto.user_id,

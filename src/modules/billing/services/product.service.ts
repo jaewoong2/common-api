@@ -8,6 +8,7 @@ import { ProductRepository } from '../repositories/product.repository';
 import { ProductType } from '../../../common/enums';
 import { ProductEntity } from '../../../database/entities/product.entity';
 import { CreateProductDto, UpdateProductDto } from '../dto/product.dto';
+import { JsonObject } from '@common/types/json-value.type';
 
 /**
  * Product Service
@@ -23,9 +24,7 @@ export class ProductService {
    * List active products (controller method)
    * @returns Array of active products
    */
-  async listProducts(): Promise<ProductEntity[]> {
-    // Get appId from request context (will be injected by middleware)
-    const appId = 'default'; // TODO: Get from context
+  async listProducts(appId: string): Promise<ProductEntity[]> {
     return this._listProducts(appId);
   }
 
@@ -34,9 +33,11 @@ export class ProductService {
    * @param dto - Create product DTO
    * @returns Created product
    */
-  async createProduct(dto: CreateProductDto): Promise<ProductEntity> {
-    const appId = (dto as any).appId || 'default';
-    const defaultPrice = (dto as any).default_price || '0';
+  async createProduct(
+    appId: string,
+    dto: CreateProductDto,
+  ): Promise<ProductEntity> {
+    const defaultPrice = dto.default_price || '0';
     return this._createProduct(
       appId,
       dto.type as ProductType,
@@ -83,7 +84,7 @@ export class ProductService {
     type: ProductType,
     name: string,
     defaultPrice: string,
-    metadata?: Record<string, any>,
+    metadata?: JsonObject,
     isActive: boolean = true,
   ): Promise<ProductEntity> {
     this.logger.log(`Creating product ${name} for app ${appId}`);
@@ -125,7 +126,7 @@ export class ProductService {
     data: {
       name?: string;
       defaultPrice?: string;
-      metadata?: Record<string, any>;
+      metadata?: JsonObject;
       isActive?: boolean;
     },
   ): Promise<ProductEntity> {

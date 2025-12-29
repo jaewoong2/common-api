@@ -7,6 +7,18 @@ import { JobEntity } from '../../database/entities/job.entity';
 import { JobType, JobStatus } from '../../common/enums';
 import { buildCanonicalString, signRequest } from '../../common/utils/hmac.util';
 import axios from 'axios';
+import { JsonObject } from '@common/types/json-value.type';
+import { AppEntity } from '../../database/entities/app.entity';
+
+type CallbackJobPayload = {
+  method: string;
+  path: string;
+  body?: JsonObject;
+  headers?: Record<string, string>;
+  expectedStatuses: number[];
+  hmacSignature: string;
+  hmacTimestamp: number;
+};
 
 /**
  * Job Service
@@ -43,7 +55,7 @@ export class JobService {
     payload: {
       method: string;
       path: string;
-      body: any;
+      body?: JsonObject;
       headers?: Record<string, string>;
       expectedStatuses?: number[];
     },
@@ -71,7 +83,7 @@ export class JobService {
       const signature = signRequest(app.callbackSecretRef, canonical);
 
       // Store signature in payload for reuse
-      const jobPayload = {
+      const jobPayload: CallbackJobPayload = {
         ...payload,
         hmacSignature: signature,
         hmacTimestamp: timestamp,
@@ -147,11 +159,18 @@ export class JobService {
    */
   private async executeHttpCallback(
     job: JobEntity,
-    app: any,
+    app: AppEntity,
     manager: EntityManager,
   ): Promise<void> {
-    const { method, path, body, headers, hmacSignature, hmacTimestamp, expectedStatuses } =
-      job.payload;
+    const {
+      method,
+      path,
+      body,
+      headers,
+      hmacSignature,
+      hmacTimestamp,
+      expectedStatuses,
+    } = job.payload as CallbackJobPayload;
 
     const url = `${app.callbackBaseUrl}${path}`;
 

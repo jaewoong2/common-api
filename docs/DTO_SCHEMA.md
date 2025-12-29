@@ -9,6 +9,9 @@
 | `RefreshTokenDto`       | src/modules/auth/dto/auth.dto.ts           | Refresh access token                          | -     |
 | `LogoutDto`             | src/modules/auth/dto/auth.dto.ts           | Logout via refresh token                      | refresh optional |
 | `UpdateProfileDto`      | src/modules/auth/dto/auth.dto.ts           | Update profile fields                         | nickname optional |
+| `CreateUserDto`         | src/modules/user/dto/create-user.dto.ts    | Create new user                               | email, profile, role optional |
+| `UpdateUserDto`         | src/modules/user/dto/update-user.dto.ts    | Update user                                   | profile, status, role optional |
+| `UserResponseDto`       | src/modules/user/dto/user-response.dto.ts  | User response DTO                             | with fromEntity transformation |
 | `CreditWalletDto`       | src/modules/wallet/dto/wallet.dto.ts       | Wallet credit request                         | requires idempotency header |
 | `DebitWalletDto`        | src/modules/wallet/dto/wallet.dto.ts       | Wallet debit request                          | requires idempotency header |
 | `WalletBalanceQueryDto` | src/modules/wallet/dto/wallet.dto.ts       | Balance query params                          | user_id |

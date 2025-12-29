@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { IdempotencyKeyEntity } from '../../database/entities/idempotency-key.entity';
+import { JsonValue } from '@common/types/json-value.type';
 
 /**
  * Idempotency Key Repository
@@ -45,7 +46,7 @@ export class IdempotencyKeyRepository {
       appId: string;
       idempotencyKey: string;
       requestHash: string;
-      responseBody: Record<string, any>;
+      responseBody: JsonValue;
       httpStatus: number;
     },
     manager?: EntityManager,

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { ProductEntity } from '../../../database/entities/product.entity';
 import { ProductType } from '../../../common/enums';
+import { JsonObject } from '@common/types/json-value.type';
 
 /**
  * Product Repository
@@ -53,7 +54,7 @@ export class ProductRepository {
       type: ProductType;
       name: string;
       defaultPrice: string;
-      metadata?: Record<string, any> | null;
+      metadata?: JsonObject | null;
       isActive?: boolean;
     },
     manager?: EntityManager,
@@ -76,7 +77,7 @@ export class ProductRepository {
     data: {
       name?: string;
       defaultPrice?: string;
-      metadata?: Record<string, any> | null;
+      metadata?: JsonObject | null;
       isActive?: boolean;
     },
     manager?: EntityManager,

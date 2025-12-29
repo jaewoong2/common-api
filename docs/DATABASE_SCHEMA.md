@@ -18,6 +18,7 @@
 | UserEntity | users | User accounts (OAuth/Magic Link only) | app_id → apps | [src/database/entities/user.entity.ts](../src/database/entities/user.entity.ts) |
 | RefreshTokenEntity | refresh_tokens | Session refresh tokens | user_id → users | [src/database/entities/refresh-token.entity.ts](../src/database/entities/refresh-token.entity.ts) |
 | MagicLinkTokenEntity | magic_link_tokens | Magic link & 6-digit verification codes | app_id → apps | [src/database/entities/magic-link-token.entity.ts](../src/database/entities/magic-link-token.entity.ts) |
+| OAuthProviderEntity | oauth_providers | OAuth account linking (Google, Kakao) | user_id → users | [src/database/entities/oauth-provider.entity.ts](../src/database/entities/oauth-provider.entity.ts) |
 | WalletLotEntity | wallet_lots | Point batches with FIFO consumption | app_id → apps, user_id → users | [src/database/entities/wallet-lot.entity.ts](../src/database/entities/wallet-lot.entity.ts) |
 | WalletLedgerEntity | wallet_ledger | Append-only transaction log | app_id → apps, user_id → users, lot_id → wallet_lots | [src/database/entities/wallet-ledger.entity.ts](../src/database/entities/wallet-ledger.entity.ts) |
 | ProductEntity | products | Purchasable items/services | app_id → apps | [src/database/entities/product.entity.ts](../src/database/entities/product.entity.ts) |
@@ -97,7 +98,35 @@
 
 ---
 
-## 4. magic_link_tokens
+## 4. oauth_providers
+
+**Purpose**: OAuth account linking for Google and Kakao authentication
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| id | uuid | No | gen_random_uuid() | Primary key |
+| app_id | uuid | No | - | FK to apps |
+| user_id | uuid | No | - | FK to users |
+| provider | varchar(50) | No | - | OAuth provider (google, kakao) |
+| provider_user_id | varchar(255) | No | - | User ID from OAuth provider |
+| email | varchar(255) | Yes | null | Email from OAuth provider |
+| profile | jsonb | Yes | null | Full OAuth profile data |
+| created_at | timestamptz | No | now() | Creation timestamp |
+| updated_at | timestamptz | No | now() | Last update timestamp |
+
+**Indices**:
+- UNIQUE(user_id, provider) - One account per provider per user
+- UNIQUE(app_id, provider, provider_user_id) - Enforce provider user uniqueness per app
+- INDEX(provider, provider_user_id)
+
+**Key Notes**:
+- Links user accounts to external OAuth providers
+- Supports multiple providers per user (Google + Kakao)
+- profile field stores raw OAuth response for debugging
+
+---
+
+## 5. magic_link_tokens
 
 **Purpose**: Passwordless authentication via magic link URL + 6-digit verification code
 

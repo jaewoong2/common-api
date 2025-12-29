@@ -6,13 +6,34 @@
 | ------ | -------------------------------- | -------------- | --------------- | ---- | -------------------------------------- |
 | POST   | /v1/auth/magic-link/request      | AuthController | requestMagicLink | Public | Request magic link                     |
 | POST   | /v1/auth/magic-link/verify       | AuthController | verifyMagicLink | Public | Verify magic link token                |
-| GET    | /v1/auth/oauth/:provider/start   | AuthController | oauthStart      | Public | OAuth start (not implemented)          |
-| GET    | /v1/auth/oauth/:provider/callback| AuthController | oauthCallback   | Public | OAuth callback (not implemented)       |
+| GET    | /v1/auth/oauth/google/start      | AuthController | googleOAuthStart | Public | Start Google OAuth flow               |
+| GET    | /v1/auth/oauth/google/callback   | AuthController | googleOAuthCallback | Public | Google OAuth callback              |
+| GET    | /v1/auth/oauth/kakao/start       | AuthController | kakaoOAuthStart  | Public | Start Kakao OAuth flow                |
+| GET    | /v1/auth/oauth/kakao/callback    | AuthController | kakaoOAuthCallback | Public | Kakao OAuth callback               |
 | POST   | /v1/auth/refresh                 | AuthController | refresh         | Public | Refresh access token                   |
 | POST   | /v1/auth/logout                  | AuthController | logout          | Public | Logout (revoke refresh token)          |
 | GET    | /v1/me                           | AuthController | getMe           | JWT  | Get current user                       |
 | PATCH  | /v1/me                           | AuthController | updateMe        | JWT  | Update current user profile            |
 | DELETE | /v1/me                           | AuthController | deleteMe        | JWT  | Delete current user (soft delete)      |
+
+## User Module
+
+| Method | Endpoint       | Controller     | Handler | Auth      | Description              |
+| ------ | -------------- | -------------- | ------- | --------- | ------------------------ |
+| GET    | /v1/users      | UserController | findAll | APP_ADMIN | List all users           |
+| GET    | /v1/users/:id  | UserController | findOne | APP_ADMIN | Get user by ID           |
+| POST   | /v1/users      | UserController | create  | APP_ADMIN | Create new user          |
+| PATCH  | /v1/users/:id  | UserController | update  | APP_ADMIN | Update user              |
+| DELETE | /v1/users/:id  | UserController | remove  | APP_ADMIN | Delete user (soft delete)|
+
+## Wallet Module
+
+| Method | Endpoint            | Controller        | Handler    | Auth   | Description                          |
+| ------ | ------------------- | ----------------- | ---------- | ------ | ------------------------------------ |
+| POST   | /v1/wallet/credit   | WalletController  | credit     | Public | Credit wallet (add points)           |
+| POST   | /v1/wallet/debit    | WalletController  | debit      | Public | Debit wallet (deduct points)         |
+| GET    | /v1/wallet/balance  | WalletController  | getBalance | Public | Get wallet balance                   |
+| GET    | /v1/wallet/ledger   | WalletController  | getLedger  | Public | Get wallet transaction ledger        |
 
 ## Billing Module
 

@@ -10,6 +10,7 @@ import { ProductEntity } from '../../database/entities/product.entity';
 import { OrderEntity } from '../../database/entities/order.entity';
 import { JobEntity } from '../../database/entities/job.entity';
 import { IdempotencyKeyEntity } from '../../database/entities/idempotency-key.entity';
+import { OAuthProviderEntity } from '../../database/entities/oauth-provider.entity';
 
 /**
  * Builds TypeORM connection options from the ConfigService.
@@ -18,12 +19,12 @@ export const buildTypeOrmOptions = (
   configService: ConfigService,
 ): TypeOrmModuleOptions => ({
   type: 'postgres',
-  host: configService.get<string>('DB_HOST'),
-  port: configService.get<number>('DB_PORT'),
-  username: configService.get<string>('DB_USER'),
-  password: configService.get<string>('DB_PASS'),
-  database: configService.get<string>('DB_NAME'),
-  schema: configService.get<string>('DB_SCHEMA', 'common'),
+  host: configService.get<string>('database.host'),
+  port: configService.get<number>('database.port'),
+  username: configService.get<string>('database.username'),
+  password: configService.get<string>('database.password'),
+  database: configService.get<string>('database.name'),
+  schema: configService.get<string>('DATABASE_SCHEMA', 'common'),
   entities: [
     AppEntity,
     UserEntity,
@@ -35,6 +36,7 @@ export const buildTypeOrmOptions = (
     OrderEntity,
     JobEntity,
     IdempotencyKeyEntity,
+    OAuthProviderEntity,
   ],
   synchronize: configService.get<string>('NODE_ENV') === 'local', // Auto-sync only in local dev
   logging: configService.get<string>('NODE_ENV') === 'local',
