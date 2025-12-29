@@ -38,4 +38,18 @@ export class AppEntity extends BaseEntity {
     nullable: true,
   })
   callbackSecretRef: string | null;
+
+  /**
+   * Allowed redirect domains for OAuth flows
+   * @description Whitelist of domains where OAuth can redirect after authentication
+   * @example ["https://example.com", "https://app.example.com", "http://localhost:3000"]
+   * @note Used for security validation to prevent open redirect vulnerabilities
+   */
+  @Column({
+    name: "allowed_redirect_domains",
+    type: "jsonb",
+    nullable: true,
+    default: () => "'[]'",
+  })
+  allowedRedirectDomains: string[] | null;
 }

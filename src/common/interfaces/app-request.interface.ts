@@ -7,6 +7,10 @@ import { UserEntity } from '@database/entities/user.entity';
 export interface AppRequest<UserType = UserEntity> extends FastifyRequest {
   appId?: string;
   /**
+   * OAuth redirect URI extracted from state parameter
+   */
+  redirectUri?: string;
+  /**
    * Request identifier exposed by Fastify + middleware.
    */
   id: string;

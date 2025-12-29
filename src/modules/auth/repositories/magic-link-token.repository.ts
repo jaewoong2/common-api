@@ -6,7 +6,8 @@ import * as crypto from "crypto";
 
 /**
  * Magic Link Token Repository
- * @description Handles magic link tokens and 6-digit verification codes
+ * @description Handles magic link tokens, 6-digit verification codes, and OAuth authorization codes
+ * @note Unified repository for all temporary authentication tokens
  */
 @Injectable()
 export class MagicLinkTokenRepository {
@@ -121,5 +122,73 @@ export class MagicLinkTokenRepository {
    */
   private hashToken(token: string): string {
     return crypto.createHash("sha256").update(token).digest("hex");
+  }
+
+  /**
+   * Create OAuth authorization code
+   * @param userId - User ID
+   * @param appId - App ID
+   * @param redirectUri - Redirect URI for validation
+   * @param provider - OAuth provider (google, kakao)
+   * @param expiresAt - Expiration timestamp (typically 5 minutes)
+   * @returns Plain authorization code (not hashed)
+   */
+  async createOAuthCode(data: {
+    userId: string;
+    appId: string;
+    redirectUri: string;
+    provider: string;
+    expiresAt: Date;
+  }): Promise<string> {
+    // Generate secure random authorization code
+    const plainCode = this.generateSecureCode();
+    const tokenHash = this.hashToken(plainCode);
+
+    const token = this.repo.create({
+      appId: data.appId,
+      userId: data.userId,
+      email: '', // OAuth uses userId, not email
+      tokenHash,
+      verificationCode: '', // Not used for OAuth
+      redirectUrl: data.redirectUri,
+      provider: data.provider,
+      expiresAt: data.expiresAt,
+      isUsed: false,
+      usedAt: null,
+    });
+
+    await this.repo.save(token);
+
+    // Return plain code for client
+    return plainCode;
+  }
+
+  /**
+   * Find OAuth code by plain code
+   * @param plainCode - Plain authorization code
+   * @returns Token entity if found and valid
+   */
+  async findOAuthCodeByHash(
+    plainCode: string
+  ): Promise<MagicLinkTokenEntity | null> {
+    const tokenHash = this.hashToken(plainCode);
+
+    return this.repo.findOne({
+      where: {
+        tokenHash,
+        isUsed: false,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  /**
+   * Generate secure random code for OAuth
+   * @returns 32-character alphanumeric code
+   */
+  private generateSecureCode(): string {
+    return crypto.randomBytes(24).toString('base64url'); // URL-safe base64
   }
 }

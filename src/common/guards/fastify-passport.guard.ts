@@ -28,19 +28,45 @@ export const FastifyPassportGuard = (strategy?: Strategy): Type<IAuthGuard> => {
       const queryAppId =
         typeof query.appId === "string" ? query.appId : undefined;
 
-      const stateAppId =
-        typeof query.state === "string" ? query.state : undefined;
-
-      const resolvedAppId = queryAppId ?? stateAppId ?? DEFAULT_APP_ID;
+      const queryRedirectUri =
+        typeof query.redirect_uri === "string" ? query.redirect_uri : undefined;
 
       const isCallback = typeof query.code === "string";
 
-      req.appId = resolvedAppId;
+      // On callback, decode state parameter
+      if (isCallback && typeof query.state === "string") {
+        try {
+          const decoded = Buffer.from(query.state, "base64").toString("utf-8");
+          const stateData = JSON.parse(decoded);
 
-      if (isCallback) {
+          req.appId = stateData.appId ?? DEFAULT_APP_ID;
+          req.redirectUri = stateData.redirect_uri;
+        } catch (error) {
+          // Fallback to old format (just appId as string)
+          req.appId = query.state;
+        }
+
         return {};
       }
 
+      // On start, encode state parameter
+      const resolvedAppId = queryAppId ?? DEFAULT_APP_ID;
+      req.appId = resolvedAppId;
+
+      // If redirect_uri provided, encode both appId and redirect_uri in state
+      if (queryRedirectUri) {
+        const stateData = {
+          appId: resolvedAppId,
+          redirect_uri: queryRedirectUri,
+        };
+        const stateString = Buffer.from(JSON.stringify(stateData)).toString(
+          "base64"
+        );
+        req.redirectUri = queryRedirectUri;
+        return { state: stateString };
+      }
+
+      // Backward compatibility: just appId in state (old format)
       return { state: resolvedAppId };
     }
   }

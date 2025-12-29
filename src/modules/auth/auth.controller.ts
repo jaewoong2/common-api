@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Req,
+  Res,
   Delete,
   UseGuards,
 } from "@nestjs/common";
@@ -19,6 +20,8 @@ import {
   LogoutDto,
   UpdateProfileDto,
 } from "./dto/auth.dto";
+import { VerifyTokenDto } from "./dto/verify-token.dto";
+import { FastifyReply } from "fastify";
 import { AuthService } from "./auth.service";
 import { AppRequest } from "@common/interfaces/app-request.interface";
 import { UserEntity } from "../../database/entities/user.entity";
@@ -43,6 +46,15 @@ export class AuthController {
     return this.authService.verifyMagicLink(body);
   }
 
+  @Post("v1/auth/verify")
+  @ApiOperation({
+    summary: 'Unified token verification for Magic Link and OAuth codes',
+    description: 'Verifies magic link tokens or OAuth authorization codes and returns JWT tokens. Auto-detects token type.'
+  })
+  async verifyToken(@Body() dto: VerifyTokenDto) {
+    return this.authService.verifyToken(dto.code, dto.redirect_uri);
+  }
+
   @Get("v1/auth/oauth/google/start")
   @UseGuards(FastifyPassportGuard("google"))
   googleOAuthStart() {
@@ -51,8 +63,21 @@ export class AuthController {
 
   @Get("v1/auth/oauth/google/callback")
   @UseGuards(FastifyPassportGuard("google"))
-  googleOAuthCallback(@Req() req: AppRequest<UserEntity>) {
-    return this.authService.oauthCallback("google", req);
+  async googleOAuthCallback(
+    @Req() req: AppRequest<UserEntity>,
+    @Res() res: FastifyReply
+  ) {
+    const result = await this.authService.oauthCallback("google", req);
+
+    // Authorization code flow - redirect to client
+    if ("code" in result && result.redirect_uri) {
+      const redirectUrl = new URL(result.redirect_uri);
+      redirectUrl.searchParams.set("code", result.code);
+      return res.redirect(redirectUrl.toString());
+    }
+
+    // Backward compatibility - return tokens as JSON
+    return res.send(result);
   }
 
   @Get("v1/auth/oauth/kakao/start")
@@ -63,8 +88,21 @@ export class AuthController {
 
   @Get("v1/auth/oauth/kakao/callback")
   @UseGuards(FastifyPassportGuard("kakao"))
-  kakaoOAuthCallback(@Req() req: AppRequest<UserEntity>) {
-    return this.authService.oauthCallback("kakao", req);
+  async kakaoOAuthCallback(
+    @Req() req: AppRequest<UserEntity>,
+    @Res() res: FastifyReply
+  ) {
+    const result = await this.authService.oauthCallback("kakao", req);
+
+    // Authorization code flow - redirect to client
+    if ("code" in result && result.redirect_uri) {
+      const redirectUrl = new URL(result.redirect_uri);
+      redirectUrl.searchParams.set("code", result.code);
+      return res.redirect(redirectUrl.toString());
+    }
+
+    // Backward compatibility - return tokens as JSON
+    return res.send(result);
   }
 
   @Post("v1/auth/refresh")

@@ -17,7 +17,7 @@
 | AppEntity | apps | Tenant application configuration | - | [src/database/entities/app.entity.ts](../src/database/entities/app.entity.ts) |
 | UserEntity | users | User accounts (OAuth/Magic Link only) | app_id → apps | [src/database/entities/user.entity.ts](../src/database/entities/user.entity.ts) |
 | RefreshTokenEntity | refresh_tokens | Session refresh tokens | user_id → users | [src/database/entities/refresh-token.entity.ts](../src/database/entities/refresh-token.entity.ts) |
-| MagicLinkTokenEntity | magic_link_tokens | Magic link & 6-digit verification codes | app_id → apps | [src/database/entities/magic-link-token.entity.ts](../src/database/entities/magic-link-token.entity.ts) |
+| MagicLinkTokenEntity | magic_link_tokens | Magic link tokens & OAuth authorization codes | app_id → apps, user_id → users | [src/database/entities/magic-link-token.entity.ts](../src/database/entities/magic-link-token.entity.ts) |
 | OAuthProviderEntity | oauth_providers | OAuth account linking (Google, Kakao) | user_id → users | [src/database/entities/oauth-provider.entity.ts](../src/database/entities/oauth-provider.entity.ts) |
 | WalletLotEntity | wallet_lots | Point batches with FIFO consumption | app_id → apps, user_id → users | [src/database/entities/wallet-lot.entity.ts](../src/database/entities/wallet-lot.entity.ts) |
 | WalletLedgerEntity | wallet_ledger | Append-only transaction log | app_id → apps, user_id → users, lot_id → wallet_lots | [src/database/entities/wallet-ledger.entity.ts](../src/database/entities/wallet-ledger.entity.ts) |
@@ -40,6 +40,7 @@
 | callback_base_url | varchar(512) | Yes | null | Base URL for job callbacks |
 | callback_allowlist_paths | jsonb | Yes | null | Allowed callback paths (whitelist) |
 | callback_secret_ref | varchar(512) | Yes | null | Reference to HMAC secret (AWS Secrets Manager ARN) |
+| allowed_redirect_domains | jsonb | Yes | '[]' | Allowed OAuth redirect domains for Authorization Code Flow |
 | created_at | timestamptz | No | now() | Creation timestamp |
 | updated_at | timestamptz | No | now() | Last update timestamp |
 
@@ -128,17 +129,19 @@
 
 ## 5. magic_link_tokens
 
-**Purpose**: Passwordless authentication via magic link URL + 6-digit verification code
+**Purpose**: Unified storage for magic link tokens and OAuth authorization codes
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
 | id | uuid | No | gen_random_uuid() | Primary key |
 | app_id | uuid | No | - | FK to apps |
-| email | varchar(255) | No | - | Email this token was sent to |
-| token_hash | varchar(255) | No | - | SHA-256 hash of URL token |
-| verification_code | varchar(6) | No | - | 6-digit code for manual entry |
+| email | varchar(255) | No | - | Email for magic link (empty for OAuth) |
+| token_hash | varchar(255) | No | - | SHA-256 hash of token/code |
+| verification_code | varchar(6) | No | - | 6-digit code for magic link (empty for OAuth) |
 | redirect_url | text | Yes | null | Redirect URL after verification |
-| expires_at | timestamptz | No | - | Token expiration (typically 15 min) |
+| provider | varchar(50) | Yes | 'magic-link' | Token type: magic-link, google, kakao |
+| user_id | uuid | Yes | null | FK to users (for OAuth codes) |
+| expires_at | timestamptz | No | - | Token expiration (15 min for magic link, 5 min for OAuth) |
 | is_used | boolean | No | false | Whether token has been used |
 | used_at | timestamptz | Yes | null | Timestamp when token was used |
 | created_at | timestamptz | No | now() | Creation timestamp |
@@ -148,11 +151,15 @@
 - UNIQUE(token_hash)
 - INDEX(email, app_id)
 - INDEX(expires_at)
+- INDEX(provider)
+- INDEX(user_id)
 
 **Key Notes**:
-- Supports both magic link URL and 6-digit verification code
-- User can either click email link OR manually enter code
+- **Unified table**: Stores both magic link tokens and OAuth authorization codes
+- Magic link: Uses email + verification_code, provider = 'magic-link'
+- OAuth codes: Uses user_id + redirect_url, provider = 'google' or 'kakao'
 - One-time use only (is_used flag)
+- Authorization Code Flow pattern for OAuth security
 
 ---
 

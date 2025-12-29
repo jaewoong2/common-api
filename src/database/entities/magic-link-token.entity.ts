@@ -7,13 +7,18 @@ import { BaseEntity } from '../../core/database/base.entity';
 
 /**
  * Magic Link Token Entity
- * @description Stores magic link tokens and verification codes for passwordless authentication
- * @note Supports both URL token and 6-digit code verification
+ * @description Stores magic link tokens, verification codes, and OAuth authorization codes
+ * @note Supports:
+ * - Magic link URL tokens (passwordless authentication)
+ * - 6-digit verification codes
+ * - OAuth authorization codes (Google, Kakao, etc.)
  */
 @Entity({ name: 'magic_link_tokens', schema: 'common' })
 @Index(['tokenHash'], { unique: true })
 @Index(['email', 'appId'])
 @Index(['expiresAt'])
+@Index(['provider'])
+@Index(['userId'])
 export class MagicLinkTokenEntity extends BaseEntity {
   /**
    * App ID for multi-tenancy
@@ -64,4 +69,22 @@ export class MagicLinkTokenEntity extends BaseEntity {
    */
   @Column({ name: 'used_at', type: 'timestamptz', nullable: true })
   usedAt: Date | null;
+
+  /**
+   * Provider type
+   * @note Distinguishes between different token types:
+   * - 'magic-link': Email-based passwordless authentication
+   * - 'google': Google OAuth authorization code
+   * - 'kakao': Kakao OAuth authorization code
+   */
+  @Column({ type: 'varchar', length: 50, nullable: true, default: 'magic-link' })
+  provider: string | null;
+
+  /**
+   * User ID (for OAuth flows)
+   * @note Magic link flows use email for user identification
+   * OAuth flows use userId after user is found/created
+   */
+  @Column({ name: 'user_id', type: 'uuid', nullable: true })
+  userId: string | null;
 }

@@ -95,14 +95,56 @@ export class AuthService {
   }
 
   /**
-   * OAuth callback - Generate JWT tokens after successful OAuth
+   * OAuth callback - Generate authorization code or JWT tokens
    * @param provider OAuth provider name
    * @param req Request with user from Passport
-   * @returns JWT tokens and user
+   * @returns Authorization code if redirect_uri provided, otherwise JWT tokens
    */
-  async oauthCallback(provider: string, req: AppRequest<UserEntity>) {
+  async oauthCallback(
+    provider: string,
+    req: AppRequest<UserEntity>
+  ): Promise<
+    | { code: string; redirect_uri: string }
+    | { access_token: string; refresh_token: string; user: UserEntity }
+  > {
     const user = req.user;
+    const redirectUri = req.redirectUri;
+
+    // Authorization code flow (new)
+    if (redirectUri) {
+      const code = await this.generateOAuthCode(
+        user.id,
+        req.appId,
+        redirectUri,
+        provider
+      );
+      return { code, redirect_uri: redirectUri };
+    }
+
+    // Backward compatibility: return tokens directly
     return this.generateTokens(user);
+  }
+
+  /**
+   * Generate OAuth authorization code
+   * @private
+   */
+  private async generateOAuthCode(
+    userId: string,
+    appId: string,
+    redirectUri: string,
+    provider: string
+  ): Promise<string> {
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 5); // 5 minutes
+
+    return this.magicLinkRepository.createOAuthCode({
+      userId,
+      appId,
+      redirectUri,
+      provider,
+      expiresAt,
+    });
   }
 
   /**
@@ -633,5 +675,71 @@ export class AuthService {
       refresh_token: refreshToken,
       user,
     };
+  }
+
+  /**
+   * Unified token verification (Magic Link + OAuth codes)
+   * @param code - Token or authorization code
+   * @param redirectUri - Required for OAuth flows, validates against stored value
+   * @returns JWT tokens and user
+   */
+  async verifyToken(
+    code: string,
+    redirectUri?: string
+  ): Promise<{
+    access_token: string;
+    refresh_token: string;
+    user: UserEntity;
+  }> {
+    this.logger.log(`Verifying token/code`);
+
+    // Find token in database
+    const tokenEntity = await this.magicLinkRepository.findOAuthCodeByHash(
+      code
+    );
+
+    if (!tokenEntity) {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+
+    // Check expiration
+    if (new Date() > tokenEntity.expiresAt) {
+      throw new UnauthorizedException('Token has expired');
+    }
+
+    // Check if already used
+    if (tokenEntity.isUsed) {
+      throw new UnauthorizedException('Token already used');
+    }
+
+    // For OAuth flows, validate redirect_uri matches
+    if (
+      tokenEntity.provider &&
+      tokenEntity.provider !== 'magic-link' &&
+      redirectUri
+    ) {
+      if (tokenEntity.redirectUrl !== redirectUri) {
+        throw new UnauthorizedException('redirect_uri does not match');
+      }
+    }
+
+    // Mark as used
+    await this.magicLinkRepository.markAsUsed(tokenEntity.id);
+
+    // Get user - OAuth uses userId, magic link uses email
+    let user: UserEntity;
+    if (tokenEntity.userId) {
+      // OAuth flow
+      user = await this.userRepository.findById(tokenEntity.userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+    } else {
+      // Magic link flow
+      user = await this.findOrCreateUser(tokenEntity.appId, tokenEntity.email);
+    }
+
+    // Generate and return JWT tokens
+    return this.generateTokens(user);
   }
 }

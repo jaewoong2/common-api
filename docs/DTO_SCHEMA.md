@@ -5,7 +5,9 @@
 | DTO Name                | File Path                                  | Purpose                                       | Notes |
 | ----------------------- | -------------------------------------------| --------------------------------------------- | ----- |
 | `RequestMagicLinkDto`   | src/modules/auth/dto/auth.dto.ts           | Request body for magic link email             | -     |
-| `VerifyMagicLinkDto`    | src/modules/auth/dto/auth.dto.ts           | Verify magic link token                       | -     |
+| `VerifyMagicLinkDto`    | src/modules/auth/dto/auth.dto.ts           | Verify magic link token (legacy)              | Deprecated, use VerifyTokenDto |
+| `VerifyTokenDto`        | src/modules/auth/dto/verify-token.dto.ts   | Unified verification (Magic Link + OAuth)     | code, redirect_uri, provider |
+| `OAuthStartQueryDto`    | src/modules/auth/dto/oauth-start-query.dto.ts | OAuth start query parameters              | appId, redirect_uri |
 | `RefreshTokenDto`       | src/modules/auth/dto/auth.dto.ts           | Refresh access token                          | -     |
 | `LogoutDto`             | src/modules/auth/dto/auth.dto.ts           | Logout via refresh token                      | refresh optional |
 | `UpdateProfileDto`      | src/modules/auth/dto/auth.dto.ts           | Update profile fields                         | nickname optional |

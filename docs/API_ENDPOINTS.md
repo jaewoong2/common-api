@@ -5,11 +5,12 @@
 | Method | Endpoint                         | Controller     | Handler         | Auth | Description                            |
 | ------ | -------------------------------- | -------------- | --------------- | ---- | -------------------------------------- |
 | POST   | /v1/auth/magic-link/request      | AuthController | requestMagicLink | Public | Request magic link                     |
-| POST   | /v1/auth/magic-link/verify       | AuthController | verifyMagicLink | Public | Verify magic link token                |
-| GET    | /v1/auth/oauth/google/start      | AuthController | googleOAuthStart | Public | Start Google OAuth flow               |
-| GET    | /v1/auth/oauth/google/callback   | AuthController | googleOAuthCallback | Public | Google OAuth callback              |
-| GET    | /v1/auth/oauth/kakao/start       | AuthController | kakaoOAuthStart  | Public | Start Kakao OAuth flow                |
-| GET    | /v1/auth/oauth/kakao/callback    | AuthController | kakaoOAuthCallback | Public | Kakao OAuth callback               |
+| POST   | /v1/auth/magic-link/verify       | AuthController | verifyMagicLink | Public | Verify magic link token (legacy)       |
+| POST   | /v1/auth/verify                  | AuthController | verifyToken     | Public | Unified verification (Magic Link + OAuth) |
+| GET    | /v1/auth/oauth/google/start      | AuthController | googleOAuthStart | Public | Start Google OAuth (accepts appId, redirect_uri) |
+| GET    | /v1/auth/oauth/google/callback   | AuthController | googleOAuthCallback | Public | Google OAuth callback (returns code or tokens) |
+| GET    | /v1/auth/oauth/kakao/start       | AuthController | kakaoOAuthStart  | Public | Start Kakao OAuth (accepts appId, redirect_uri) |
+| GET    | /v1/auth/oauth/kakao/callback    | AuthController | kakaoOAuthCallback | Public | Kakao OAuth callback (returns code or tokens) |
 | POST   | /v1/auth/refresh                 | AuthController | refresh         | Public | Refresh access token                   |
 | POST   | /v1/auth/logout                  | AuthController | logout          | Public | Logout (revoke refresh token)          |
 | GET    | /v1/me                           | AuthController | getMe           | JWT  | Get current user                       |
