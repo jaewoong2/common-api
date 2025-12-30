@@ -1,6 +1,8 @@
 import { Body, Controller, Headers, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CreateCallbackJobDto, RunJobsDto } from './dto/job.dto';
+import { CreateUnifiedJobDto } from './dto/create-job.dto';
+import { UnifiedJobMessageDto } from './dto/unified-job-message.dto';
 import { JobService } from './job.service';
 
 @ApiTags('job')
@@ -8,8 +10,11 @@ import { JobService } from './job.service';
 export class JobController {
   constructor(private readonly jobService: JobService) {}
 
+  // ========== Legacy Endpoints (Backward Compatibility) ==========
+
   @Post('v1/jobs/callback-http')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: '[Legacy] Create HTTP callback job' })
   createCallbackJob(
     @Headers('x-app-id') appId: string,
     @Headers('idempotency-key') idempotencyKey: string,
@@ -25,7 +30,43 @@ export class JobController {
   }
 
   @Post('internal/v1/jobs/run')
+  @ApiOperation({ summary: '[Legacy] Run due jobs from database' })
   runDueJobs(@Body() body: RunJobsDto) {
     return this.jobService.runDueJobs(body.limit || 100);
+  }
+
+  // ========== Unified Job System Endpoints ==========
+
+  @Post('v1/jobs/create')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create unified job (supports SQS, DB, or both)' })
+  @ApiResponse({ status: 201, description: 'Job created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  async createUnifiedJob(@Body() dto: CreateUnifiedJobDto) {
+    return this.jobService.createUnifiedJob(dto);
+  }
+
+  @Post('internal/v1/poll-sqs')
+  @ApiOperation({ summary: 'Poll SQS and process messages (called by EventBridge cron)' })
+  @ApiResponse({ status: 200, description: 'Messages processed successfully' })
+  async pollSqs(@Body() body?: { limit?: number }) {
+    const processed = await this.jobService.pollAndProcessSqs(body?.limit || 10);
+    return { processed };
+  }
+
+  @Post('internal/v1/run-db-jobs')
+  @ApiOperation({ summary: 'Run due DB jobs (called by EventBridge cron)' })
+  @ApiResponse({ status: 200, description: 'Jobs processed successfully' })
+  async runDbJobs(@Body() body?: { limit?: number }) {
+    const processed = await this.jobService.runDueDbJobs(body?.limit || 100);
+    return { processed };
+  }
+
+  @Post('internal/v1/process-scheduled-message')
+  @ApiOperation({ summary: 'Process scheduled message (called by EventBridge Schedule)' })
+  @ApiResponse({ status: 200, description: 'Scheduled message processed successfully' })
+  async processScheduledMessage(@Body() message: UnifiedJobMessageDto) {
+    await this.jobService.processScheduledMessage(message);
+    return { success: true };
   }
 }

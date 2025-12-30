@@ -11,3 +11,4 @@ export { ProductType } from './product-type.enum';
 export { OrderStatus } from './order-status.enum';
 export { JobType } from './job-type.enum';
 export { JobStatus } from './job-status.enum';
+export { ExecutionType } from './execution-type.enum';

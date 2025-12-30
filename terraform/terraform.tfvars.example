@@ -1,0 +1,8 @@
+# Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+
+environment                = "dev"
+aws_region                 = "ap-northeast-2"
+lambda_function_name       = "common-api-lambda"
+lambda_function_arn        = "arn:aws:lambda:ap-northeast-2:123456789012:function:common-api-lambda"
+lambda_execution_role_name = "common-api-lambda-execution-role"

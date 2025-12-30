@@ -48,10 +48,21 @@
 
 ## Job Module
 
+### Legacy Endpoints (Backward Compatibility)
+
 | Method | Endpoint                  | Controller  | Handler        | Auth   | Description                         |
 | ------ | ------------------------- | ----------- | -------------- | ------ | ----------------------------------- |
-| POST   | /v1/jobs/callback-http    | JobController | createCallbackJob | Public | Create callback HTTP job            |
-| POST   | /internal/v1/jobs/run     | JobController | runDueJobs     | Internal | Run due jobs (scheduler)            |
+| POST   | /v1/jobs/callback-http    | JobController | createCallbackJob | Public | [Legacy] Create callback HTTP job   |
+| POST   | /internal/v1/jobs/run     | JobController | runDueJobs     | Internal | [Legacy] Run due jobs (scheduler)   |
+
+### Unified Job System Endpoints
+
+| Method | Endpoint                              | Controller  | Handler                   | Auth     | Description                                          |
+| ------ | ------------------------------------- | ----------- | ------------------------- | -------- | ---------------------------------------------------- |
+| POST   | /v1/jobs/create                       | JobController | createUnifiedJob        | Public   | Create unified job (mode: db\|sqs\|both)             |
+| POST   | /internal/v1/poll-sqs                 | JobController | pollSqs                 | Internal | Poll SQS and process messages (EventBridge cron: 1m) |
+| POST   | /internal/v1/run-db-jobs              | JobController | runDbJobs               | Internal | Run due DB jobs (EventBridge cron: 5m)               |
+| POST   | /internal/v1/process-scheduled-message| JobController | processScheduledMessage | Internal | Process scheduled message (EventBridge Scheduler)    |
 
 ## Admin Module
 

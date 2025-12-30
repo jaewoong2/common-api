@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, EntityManager, LessThanOrEqual } from 'typeorm';
+import { Repository, EntityManager, LessThanOrEqual, In } from 'typeorm';
 import { JobEntity } from '../../../database/entities/job.entity';
-import { JobType, JobStatus } from '../../../common/enums';
+import { JobType, JobStatus, ExecutionType } from '../../../common/enums';
 import { JsonObject } from '@common/types/json-value.type';
 
 /**
@@ -31,7 +31,7 @@ export class JobRepository {
   }
 
   /**
-   * Create new job
+   * Create new job (supports both legacy and unified job system)
    * @param data - Job creation data
    * @param manager - Optional transaction manager
    * @returns Created job entity
@@ -39,23 +39,44 @@ export class JobRepository {
   async create(
     data: {
       appId: string;
-      type: JobType;
-      payload: JsonObject;
+      // Legacy fields (deprecated)
+      type?: JobType | null;
+      payload?: JsonObject | null;
+      // New unified job system fields
+      executionType?: ExecutionType | null;
+      lambdaProxyMessage?: JsonObject | null;
+      executionConfig?: JsonObject | null;
+      messageGroupId?: string | null;
+      idempotencyKey?: string | null;
+      scheduleArn?: string | null;
+      // Common fields
+      status?: JobStatus;
+      retryCount?: number;
       maxRetries?: number;
       nextRetryAt?: Date | null;
+      lastError?: string | null;
     },
     manager?: EntityManager,
   ): Promise<JobEntity> {
     const repository = manager ? manager.getRepository(JobEntity) : this.repo;
     const entity = repository.create({
       appId: data.appId,
-      type: data.type,
-      payload: data.payload,
-      status: JobStatus.PENDING,
-      retryCount: 0,
+      // Legacy fields
+      type: data.type ?? null,
+      payload: data.payload ?? null,
+      // New fields
+      executionType: data.executionType ?? null,
+      lambdaProxyMessage: data.lambdaProxyMessage ?? null,
+      executionConfig: data.executionConfig ?? null,
+      messageGroupId: data.messageGroupId ?? null,
+      idempotencyKey: data.idempotencyKey ?? null,
+      scheduleArn: data.scheduleArn ?? null,
+      // Common fields
+      status: data.status ?? JobStatus.PENDING,
+      retryCount: data.retryCount ?? 0,
       maxRetries: data.maxRetries ?? 10,
       nextRetryAt: data.nextRetryAt ?? new Date(),
-      lastError: null,
+      lastError: data.lastError ?? null,
     });
     return repository.save(entity);
   }
@@ -71,10 +92,12 @@ export class JobRepository {
     manager?: EntityManager,
   ): Promise<JobEntity[]> {
     const repository = manager ? manager.getRepository(JobEntity) : this.repo;
-    
+
     return repository
       .createQueryBuilder('job')
-      .where('job.status = :status', { status: JobStatus.PENDING })
+      .where('job.status IN (:...statuses)', {
+        statuses: [JobStatus.PENDING, JobStatus.RETRYING]
+      })
       .andWhere('job.nextRetryAt <= :now', { now: new Date() })
       .orderBy('job.nextRetryAt', 'ASC')
       .limit(limit)
@@ -96,6 +119,8 @@ export class JobRepository {
       retryCount?: number;
       nextRetryAt?: Date | null;
       lastError?: string | null;
+      scheduleArn?: string | null;
+      executionConfig?: JsonObject | null;
     },
     manager?: EntityManager,
   ): Promise<void> {

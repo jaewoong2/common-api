@@ -23,7 +23,7 @@
 | WalletLedgerEntity | wallet_ledger | Append-only transaction log | app_id → apps, user_id → users, lot_id → wallet_lots | [src/database/entities/wallet-ledger.entity.ts](../src/database/entities/wallet-ledger.entity.ts) |
 | ProductEntity | products | Purchasable items/services | app_id → apps | [src/database/entities/product.entity.ts](../src/database/entities/product.entity.ts) |
 | OrderEntity | orders | Purchase transactions using points | app_id → apps, user_id → users, product_id → products | [src/database/entities/order.entity.ts](../src/database/entities/order.entity.ts) |
-| JobEntity | jobs | Async jobs with retry logic | app_id → apps | [src/database/entities/job.entity.ts](../src/database/entities/job.entity.ts) |
+| JobEntity | jobs | Unified job queue system (SQS + DB + EventBridge Scheduler) | app_id → apps | [src/database/entities/job.entity.ts](../src/database/entities/job.entity.ts) |
 | IdempotencyKeyEntity | idempotency_keys | Idempotency tracking for financial ops | app_id → apps | [src/database/entities/idempotency-key.entity.ts](../src/database/entities/idempotency-key.entity.ts) |
 
 ---
@@ -278,15 +278,21 @@
 
 ## 9. jobs
 
-**Purpose**: Asynchronous job execution with retry logic
+**Purpose**: Unified job queue system (SQS, DB, EventBridge Scheduler)
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
 | id | uuid | No | gen_random_uuid() | Primary key |
 | app_id | uuid | No | - | FK to apps |
-| type | enum | No | - | CALLBACK_HTTP, REWARD_GRANT |
+| **execution_type** | varchar(50) | Yes | null | **[NEW]** Execution type: lambda-invoke, lambda-url, rest-api, schedule |
+| **lambda_proxy_message** | jsonb | Yes | null | **[NEW]** AWS Lambda proxy event structure (body, path, httpMethod, headers, requestContext) |
+| **execution_config** | jsonb | Yes | null | **[NEW]** Type-specific config (functionName, baseUrl, scheduleExpression, targetJob) |
+| **message_group_id** | varchar(100) | Yes | null | **[NEW]** SQS FIFO MessageGroupId (same as execution_type) |
+| **idempotency_key** | varchar(255) | Yes | null | **[NEW]** Deduplication key for SQS and job creation |
+| **schedule_arn** | varchar(255) | Yes | null | **[NEW]** EventBridge Schedule ARN for cleanup |
+| type | enum | Yes | null | **[DEPRECATED]** CALLBACK_HTTP, REWARD_GRANT (use execution_type) |
+| payload | jsonb | Yes | null | **[DEPRECATED]** Legacy job data (use lambda_proxy_message) |
 | status | enum | No | 'PENDING' | PENDING, RETRYING, SUCCEEDED, FAILED, DEAD |
-| payload | jsonb | No | - | Job data (HTTP method, path, body, HMAC signature, etc.) |
 | retry_count | integer | No | 0 | Current retry attempt count |
 | max_retries | integer | No | 10 | Maximum retries allowed |
 | next_retry_at | timestamptz | Yes | null | Next scheduled execution (NULL = not scheduled) |
@@ -295,14 +301,23 @@
 | updated_at | timestamptz | No | now() | Last update timestamp |
 
 **Indices**:
-- INDEX(app_id, status, next_retry_at) - For job runner queries
-- INDEX(type)
-- INDEX(status)
+- INDEX(status, next_retry_at) - For due jobs query (PENDING/RETRYING)
+- INDEX(execution_type) - For execution type filtering
+- INDEX(idempotency_key) WHERE idempotency_key IS NOT NULL - For deduplication
+- INDEX(schedule_arn) WHERE schedule_arn IS NOT NULL - For schedule cleanup
+- INDEX(app_id, status, next_retry_at) - Legacy index (kept for backward compatibility)
+- INDEX(type) - Legacy index
+- INDEX(status) - Legacy index
 
 **Key Notes**:
-- HMAC signature stored in payload for reuse on retries
-- Exponential backoff: `min(2^retry_count * 60s, 24h)`
-- 5xx/timeout → RETRYING, 4xx → DEAD, 2xx → SUCCEEDED
+- **Hybrid Architecture**: SQS for active jobs, DB for failed/retrying jobs, EventBridge Scheduler for delayed execution
+- **4 Execution Types**: lambda-invoke (AWS SDK), lambda-url (HTTP + SigV4), rest-api (HTTP), schedule (EventBridge wrapper)
+- **Message Format**: LambdaProxyMessage (AWS Lambda proxy event) + ExecutionConfig (type-specific params) + Metadata (tracking)
+- **Exponential Backoff**: `min(2^retry_count * 60s, 24h)`
+- **Status Transitions**: SQS failure → DB save with RETRYING, DB success → SUCCEEDED, Max retries → FAILED
+- **Legacy Compatibility**: Old columns (type, payload) kept for backward compatibility but nullable
+- **SQS FIFO Queue**: jobs-main.fifo with MessageGroupId routing by execution_type
+- **EventBridge Cron**: Poll SQS every 1 min, Run DB jobs every 5 min
 
 ---
 

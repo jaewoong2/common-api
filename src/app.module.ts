@@ -7,6 +7,7 @@ import { LoggerModule } from "./core/logger/logger.module";
 import { RequestIdMiddleware } from "./core/logger/request-id.middleware";
 import { TenantMiddleware } from "./common/middleware/tenant.middleware";
 import { CommonModule } from "./common/common.module";
+import { AwsClientsModule } from "./infra/aws/aws-clients.module";
 import { EmailModule } from "./infra/email/email.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { UserModule } from "./modules/user/user.module";
@@ -27,6 +28,7 @@ import { PlatformModule } from "./modules/platform/platform.module";
     DatabaseModule,
     LoggerModule,
     CommonModule,
+    AwsClientsModule,
     EmailModule,
     AuthModule,
     UserModule,

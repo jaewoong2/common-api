@@ -244,20 +244,54 @@
 
 ## Jobs
 
+### Job Service (Legacy Methods)
+
 | Function/Method      | File                               | Description                            | Parameters                     | Return            | Example                                   |
 | -------------------- | ---------------------------------- | -------------------------------------- | ------------------------------ | ----------------- | ----------------------------------------- |
-| `createCallbackJob`  | src/modules/job/job.service.ts     | Registers callback HTTP job            | `CreateCallbackJobDto`         | `Promise<never>`* | `jobService.createCallbackJob(dto)`       |
-| `runDueJobs`         | src/modules/job/job.service.ts     | Executes due jobs picked by scheduler  | `RunJobsDto`                   | `Promise<never>`* | `jobService.runDueJobs({ limit: 100 })`   |
+| `createCallbackJob`  | src/modules/job/job.service.ts     | [Legacy] Registers callback HTTP job   | `appId: string`, `payload: {...}`, `idempotencyKey?: string` | `Promise<JobEntity>` | `jobService.createCallbackJob(appId, payload)` |
+| `runDueJobs`         | src/modules/job/job.service.ts     | [Legacy] Executes due jobs from DB     | `limit?: number`               | `Promise<number>` | `jobService.runDueJobs(100)`              |
+| `getJob`             | src/modules/job/job.service.ts     | Get job by ID                          | `jobId: string`                | `Promise<JobEntity>` | `jobService.getJob(jobId)`                |
+| `retryJob`           | src/modules/job/job.service.ts     | Retry failed job (admin operation)     | `jobId: string`                | `Promise<JobEntity>` | `jobService.retryJob(jobId)`              |
+| `deadletterJob`      | src/modules/job/job.service.ts     | Mark job as dead letter                | `jobId: string`                | `Promise<JobEntity>` | `jobService.deadletterJob(jobId)`         |
+
+### Job Service (Unified Job System)
+
+| Function/Method           | File                               | Description                                        | Parameters                     | Return                      | Example                                          |
+| ------------------------- | ---------------------------------- | -------------------------------------------------- | ------------------------------ | --------------------------- | ------------------------------------------------ |
+| `createUnifiedJob`        | src/modules/job/job.service.ts     | Create unified job (mode: db\|sqs\|both)           | `CreateUnifiedJobDto`          | `Promise<JobEntity \| null>` | `jobService.createUnifiedJob(dto)`               |
+| `pollAndProcessSqs`       | src/modules/job/job.service.ts     | Poll SQS and process messages                      | `limit?: number`               | `Promise<number>`           | `jobService.pollAndProcessSqs(10)`               |
+| `runDueDbJobs`            | src/modules/job/job.service.ts     | Run due DB jobs with retry logic                   | `limit?: number`               | `Promise<number>`           | `jobService.runDueDbJobs(100)`                   |
+| `processScheduledMessage` | src/modules/job/job.service.ts     | Process EventBridge scheduled message              | `UnifiedJobMessageDto`         | `Promise<void>`             | `jobService.processScheduledMessage(msg)`        |
+
+### Job Service (Private Helpers)
+
+| Function/Method       | File                               | Description                                        | Parameters                                      | Return                | Example                                          |
+| --------------------- | ---------------------------------- | -------------------------------------------------- | ----------------------------------------------- | --------------------- | ------------------------------------------------ |
+| `createJobInDb`       | src/modules/job/job.service.ts     | Save job to database                               | `message: UnifiedJobMessageDto`, `manager?: EntityManager` | `Promise<JobEntity>`  | `createJobInDb(message, manager)`                |
+| `sendToSqs`           | src/modules/job/job.service.ts     | Send message to SQS FIFO queue                     | `message: UnifiedJobMessageDto`                 | `Promise<void>`       | `sendToSqs(message)`                             |
+| `saveFailedJobToDb`   | src/modules/job/job.service.ts     | Save failed job to DB for retry                    | `message: UnifiedJobMessageDto`, `error: string`| `Promise<void>`       | `saveFailedJobToDb(message, error)`              |
+| `dbJobToMessage`      | src/modules/job/job.service.ts     | Convert JobEntity to UnifiedJobMessage             | `job: JobEntity`                                | `UnifiedJobMessageDto`| `dbJobToMessage(job)`                            |
+| `calculateNextRetry`  | src/modules/job/job.service.ts     | Calculate exponential backoff (min 2^n*60s, max 24h) | `retryCount: number`                         | `Date`                | `calculateNextRetry(3)`                          |
+
+### Message Processor Service
+
+| Function/Method       | File                                              | Description                                    | Parameters                     | Return          | Example                                       |
+| --------------------- | ------------------------------------------------- | ---------------------------------------------- | ------------------------------ | --------------- | --------------------------------------------- |
+| `processMessage`      | src/modules/job/services/message-processor.service.ts | Route and execute by execution type            | `UnifiedJobMessageDto`         | `Promise<void>` | `processor.processMessage(message)`           |
+| `executeLambdaInvoke` | src/modules/job/services/message-processor.service.ts | Execute Lambda invoke (AWS SDK)                | `UnifiedJobMessageDto`         | `Promise<void>` | `executeLambdaInvoke(message)` (private)      |
+| `executeLambdaUrl`    | src/modules/job/services/message-processor.service.ts | Execute Lambda Function URL with SigV4         | `UnifiedJobMessageDto`         | `Promise<void>` | `executeLambdaUrl(message)` (private)         |
+| `executeRestApi`      | src/modules/job/services/message-processor.service.ts | Execute REST API call                          | `UnifiedJobMessageDto`         | `Promise<void>` | `executeRestApi(message)` (private)           |
+| `executeSchedule`     | src/modules/job/services/message-processor.service.ts | Create EventBridge Schedule                    | `UnifiedJobMessageDto`         | `Promise<void>` | `executeSchedule(message)` (private)        |
 
 ### Job Repository
 
-| Function/Method       | File                                       | Description                           | Parameters                                                            | Return                    | Example                                        |
-| --------------------- | ------------------------------------------ | ------------------------------------- | --------------------------------------------------------------------- | ------------------------- | ---------------------------------------------- |
-| `create`              | src/modules/job/repositories/job.repository.ts | Create new job                        | `data: {...}`, `manager?: EntityManager`                              | `Promise<JobEntity>`      | `jobRepo.create(data, manager)`                |
-| `findById`            | src/modules/job/repositories/job.repository.ts | Find job by ID                        | `id: string`                                                          | `Promise<JobEntity \| null>` | `jobRepo.findById(id)`                         |
-| `getDueJobs`          | src/modules/job/repositories/job.repository.ts | Get due jobs with row-level lock      | `limit?: number`, `manager?: EntityManager`                           | `Promise<JobEntity[]>`    | `jobRepo.getDueJobs(10, manager)`              |
-| `updateStatus`        | src/modules/job/repositories/job.repository.ts | Update job status                     | `id: string`, `status: JobStatus`, `lastError?: string`, `manager?: EntityManager` | `Promise<void>`           | `jobRepo.updateStatus(id, status, err, mgr)`   |
-| `incrementRetryCount` | src/modules/job/repositories/job.repository.ts | Increment retry count and set next retry | `id: string`, `nextRetryAt: Date`, `lastError: string`, `manager?: EntityManager` | `Promise<void>`           | `jobRepo.incrementRetryCount(id, date, err)`   |
+| Function/Method       | File                                       | Description                                    | Parameters                                                            | Return                    | Example                                        |
+| --------------------- | ------------------------------------------ | ---------------------------------------------- | --------------------------------------------------------------------- | ------------------------- | ---------------------------------------------- |
+| `create`              | src/modules/job/repositories/job.repository.ts | Create job (supports legacy & unified fields)  | `data: {...}`, `manager?: EntityManager`                              | `Promise<JobEntity>`      | `jobRepo.create(data, manager)`                |
+| `findById`            | src/modules/job/repositories/job.repository.ts | Find job by ID                                 | `jobId: string`, `manager?: EntityManager`                            | `Promise<JobEntity \| null>` | `jobRepo.findById(id, manager)`                |
+| `getDueJobsForUpdate` | src/modules/job/repositories/job.repository.ts | Get due jobs with pessimistic lock (PENDING/RETRYING) | `limit: number`, `manager?: EntityManager`                    | `Promise<JobEntity[]>`    | `jobRepo.getDueJobsForUpdate(10, manager)`     |
+| `update`              | src/modules/job/repositories/job.repository.ts | Update job status and fields                   | `jobId: string`, `data: {...}`, `manager?: EntityManager`             | `Promise<void>`           | `jobRepo.update(id, data, manager)`            |
+| `findWithFilters`     | src/modules/job/repositories/job.repository.ts | Find jobs with filters (admin)                 | `appId: string`, `filters: {...}`, `manager?: EntityManager`          | `Promise<{jobs, total}>`  | `jobRepo.findWithFilters(appId, filters)`      |
 
 ## Admin
 

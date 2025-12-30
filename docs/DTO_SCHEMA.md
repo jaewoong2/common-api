@@ -22,8 +22,14 @@
 | `UpdateProductDto`      | src/modules/billing/dto/product.dto.ts     | Admin update product                          | name/active/metadata |
 | `CreateOrderDto`        | src/modules/billing/dto/order.dto.ts       | Create order with wallet payment              | includes reason/ref fields |
 | `RefundOrderDto`        | src/modules/billing/dto/order.dto.ts       | Refund order request                          | idempotency key optional |
-| `CreateCallbackJobDto`  | src/modules/job/dto/job.dto.ts             | Create callback HTTP job                      | method/path/body/timeout |
-| `RunJobsDto`            | src/modules/job/dto/job.dto.ts             | Internal job runner payload                   | limit optional |
+| `CreateCallbackJobDto`  | src/modules/job/dto/job.dto.ts             | [Legacy] Create callback HTTP job             | method/path/body/timeout |
+| `RunJobsDto`            | src/modules/job/dto/job.dto.ts             | [Legacy] Internal job runner payload          | limit optional |
+| `LambdaProxyMessageDto` | src/modules/job/dto/unified-job-message.dto.ts | AWS Lambda proxy event structure          | body/path/httpMethod/headers/requestContext |
+| `ExecutionConfigDto`    | src/modules/job/dto/unified-job-message.dto.ts | Execution type-specific configuration     | type/functionName/invocationType/functionUrl/baseUrl/scheduleExpression/targetJob |
+| `JobMetadataDto`        | src/modules/job/dto/unified-job-message.dto.ts | Job tracking metadata                     | jobId/appId/messageGroupId/idempotencyKey/createdAt/retryCount |
+| `UnifiedJobMessageDto`  | src/modules/job/dto/unified-job-message.dto.ts | Complete unified job message wrapper      | lambdaProxyMessage/execution/metadata |
+| `CreateUnifiedJobDto`   | src/modules/job/dto/create-job.dto.ts      | Create unified job request                    | appId/message/mode(db\|sqs\|both) |
+| `JobCreationMode`       | src/modules/job/dto/create-job.dto.ts      | Job creation mode enum                        | DB/SQS/BOTH |
 | `SuspendReasonDto`      | src/modules/admin/dto/admin.dto.ts         | Admin suspend reason                          | reason |
 | `AdjustWalletDto`       | src/modules/admin/dto/admin.dto.ts         | Admin wallet adjust payload                   | delta with refs |
 | `RetryJobDto`           | src/modules/admin/dto/admin.dto.ts         | Admin job id payload                          | jobId |

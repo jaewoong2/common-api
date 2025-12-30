@@ -1,3 +1,5 @@
+import awsConfig from './aws.config';
+
 export default () => ({
   env: process.env.NODE_ENV || "local",
   platform: process.env.PLATFORM || "ecs",
@@ -33,10 +35,5 @@ export default () => ({
         "http://localhost:8000/v1/auth/oauth/kakao/callback",
     },
   },
-  aws: {
-    ses: {
-      fromEmail: process.env.AWS_SES_FROM_EMAIL || "noreply@biizbiiz.com",
-      region: process.env.AWS_DEFAULT_REGION || "ap-northeast-2",
-    },
-  },
+  aws: awsConfig(),
 });
