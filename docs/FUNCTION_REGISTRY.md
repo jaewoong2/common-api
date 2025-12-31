@@ -34,8 +34,10 @@
 | `intercept`              | src/common/interceptors/response.interceptor.ts| Wraps successful responses with `success`, `data`, `request_id`, `timestamp` | `context: ExecutionContext`, `next: CallHandler` | `Observable<any>` | Used as a global interceptor                                   |
 | `use`                    | src/core/logger/request-id.middleware.ts   | Ensures `X-Request-Id` header and sets `req.id`    | `req`, `res`, `next`                        | `void`             | Registered for all routes                                      |
 | `FastifyPassportGuard`   | src/common/guards/fastify-passport.guard.ts| Returns Passport guard compatible with Fastify responses | `strategy?: string \| string[]`         | `Type<IAuthGuard>` | `@UseGuards(FastifyPassportGuard('google'))`                   |
-| `canActivate`            | src/common/guards/roles.guard.ts           | Simple role check guard                            | `context: ExecutionContext`                 | `boolean`          | Attached via `@UseGuards(RolesGuard)`                          |
+| `JwtAuthGuard`           | src/common/guards/jwt-auth.guard.ts        | Global guard enforcing bearer JWT unless `@Public` | `context: ExecutionContext`                 | `boolean \| Promise<boolean>` | Provided globally via `APP_GUARD`                              |
+| `canActivate`            | src/common/guards/roles.guard.ts           | Global role check guard (honors `@Roles`)          | `context: ExecutionContext`                 | `boolean`          | Provided globally; set roles via `@Roles(...)`                 |
 | `Roles` decorator        | src/common/decorators/roles.decorator.ts   | Sets route metadata for required roles             | `...roles: string[]`                        | `CustomDecorator`   | `@Roles('ADMIN')`                                              |
+| `Auth` decorator         | src/common/decorators/auth.decorator.ts    | Adds `JwtAuthGuard` + Swagger bearer auth metadata | `()`                                        | `ClassDecorator & MethodDecorator` | `@Auth()`                                                      |
 
 ## Common Exceptions
 
@@ -71,6 +73,12 @@
 | `getCurrentUser`         | src/modules/auth/auth.service.ts       | Get user by ID                                 | `userId: string`                                                  | `Promise<UserEntity>`                        | `authService.getCurrentUser(userId)`               |
 | `updateProfile`          | src/modules/auth/auth.service.ts       | Update user profile                            | `userId: string`, `profile: JsonObject`                  | `Promise<UserEntity>`                        | `authService.updateProfile(userId, profile)`       |
 | `deleteAccount`          | src/modules/auth/auth.service.ts       | Soft delete user account                       | `userId: string`                                                  | `Promise<{message: string}>`                 | `authService.deleteAccount(userId)`                |
+
+### JWT Strategy
+
+| Function/Method | File                                        | Description                                      | Parameters                      | Return                        | Example                               |
+| --------------- | ------------------------------------------- | ------------------------------------------------ | ------------------------------- | ----------------------------- | ------------------------------------- |
+| `validate`      | src/modules/auth/strategies/jwt.strategy.ts | Maps JWT payload to `AuthenticatedUser` for req   | `payload: JwtPayload`           | `Promise<AuthenticatedUser>`  | `jwtStrategy.validate(payload)`       |
 
 ### OAuth Profile Utilities (Kakao)
 

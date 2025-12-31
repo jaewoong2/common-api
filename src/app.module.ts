@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import configuration from "./config/configuration";
 import validationSchema from "./config/validation";
@@ -17,6 +18,9 @@ import { PointModule } from "./modules/point/point.module";
 import { WalletModule } from "./modules/wallet/wallet";
 import { AdminModule } from "./modules/admin/admin.module";
 import { PlatformModule } from "./modules/platform/platform.module";
+import { HealthModule } from "./modules/health/health.module";
+import { RolesGuard } from "./common/guards/roles.guard";
+import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 
 @Module({
   imports: [
@@ -30,6 +34,7 @@ import { PlatformModule } from "./modules/platform/platform.module";
     CommonModule,
     AwsClientsModule,
     EmailModule,
+    HealthModule,
     AuthModule,
     UserModule,
     BillingModule,
@@ -39,12 +44,23 @@ import { PlatformModule } from "./modules/platform/platform.module";
     AdminModule,
     PlatformModule,
   ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(RequestIdMiddleware, TenantMiddleware)
       .exclude(
+        "/health",
         "/v1/auth/oauth/google/start",
         "/v1/auth/oauth/google/callback",
         "/v1/auth/oauth/kakao/start",

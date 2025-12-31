@@ -4,6 +4,7 @@ import { IdempotencyKeyRepository } from './repositories/idempotency-key.reposit
 import { IdempotencyGuard } from './guards/idempotency.guard';
 import { IdempotencyKeyEntity } from '../database/entities/idempotency-key.entity';
 import { RolesGuard } from './guards/roles.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 /**
  * Common Module
@@ -12,7 +13,7 @@ import { RolesGuard } from './guards/roles.guard';
 @Global()
 @Module({
   imports: [TypeOrmModule.forFeature([IdempotencyKeyEntity])],
-  providers: [IdempotencyKeyRepository, IdempotencyGuard, RolesGuard],
-  exports: [IdempotencyKeyRepository, IdempotencyGuard, RolesGuard],
+  providers: [IdempotencyKeyRepository, IdempotencyGuard, RolesGuard, JwtAuthGuard],
+  exports: [IdempotencyKeyRepository, IdempotencyGuard, RolesGuard, JwtAuthGuard],
 })
 export class CommonModule {}

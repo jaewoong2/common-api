@@ -13,7 +13,7 @@ import {
   UseGuards,
   Redirect,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import {
   RequestMagicLinkDto,
   VerifyMagicLinkDto,
@@ -29,6 +29,9 @@ import { UserEntity } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "./interfaces/auth-user.interface";
 import { FastifyPassportGuard } from "@common/guards/fastify-passport.guard";
 import { DEFAULT_APP_ID } from "./constants/auth.constants";
+import { Public } from "@common/decorators/public.decorator";
+import { AppException } from "@/common/exceptions/app.exception";
+import { ERROR_CODE } from "@/common/exceptions/error-codes";
 
 @ApiTags("auth")
 @Controller()
@@ -37,17 +40,20 @@ export class AuthController {
 
   @Post("v1/auth/magic-link/request")
   @HttpCode(HttpStatus.ACCEPTED)
+  @Public()
   requestMagicLink(@Body() body: RequestMagicLinkDto, @Req() req: AppRequest) {
     const appId = req.appId ?? DEFAULT_APP_ID;
     return this.authService.requestMagicLink(appId, body);
   }
 
   @Post("v1/auth/magic-link/verify")
+  @Public()
   verifyMagicLink(@Body() body: VerifyMagicLinkDto) {
     return this.authService.verifyMagicLink(body);
   }
 
   @Post("v1/auth/verify")
+  @Public()
   @ApiOperation({
     summary: "Unified token verification for Magic Link and OAuth codes",
     description:
@@ -59,13 +65,15 @@ export class AuthController {
 
   @Get("v1/auth/oauth/google/start")
   @UseGuards(FastifyPassportGuard("google"))
+  @Public()
   googleOAuthStart() {
     // Guard will handle redirect to Google
   }
 
   @Get("v1/auth/oauth/google/callback")
   @UseGuards(FastifyPassportGuard("google"))
-  @Redirect("https://docs.nestjs.com", 302)
+  @Redirect()
+  @Public()
   async googleOAuthCallback(
     @Req() req: AppRequest<UserEntity>,
     @Res() res: FastifyReply
@@ -82,10 +90,17 @@ export class AuthController {
         statusCode: 302,
       };
     }
+
+    throw new AppException(
+      ERROR_CODE.INTERNAL_ERROR,
+      "Unauthorized",
+      HttpStatus.UNAUTHORIZED
+    );
   }
 
   @Get("v1/auth/oauth/kakao/start")
   @UseGuards(FastifyPassportGuard("kakao"))
+  @Public()
   kakaoOAuthStart() {
     // Guard will handle redirect to Kakao
   }
@@ -93,6 +108,7 @@ export class AuthController {
   @Get("v1/auth/oauth/kakao/callback")
   @UseGuards(FastifyPassportGuard("kakao"))
   @Redirect()
+  @Public()
   async kakaoOAuthCallback(
     @Req() req: AppRequest<UserEntity>,
     @Res() res: FastifyReply
@@ -110,28 +126,34 @@ export class AuthController {
       };
     }
 
-    return {
-      url: "https://docs.nestjs.com",
-      statusCode: 302,
-    };
+    // return Error;
+    throw new AppException(
+      ERROR_CODE.INTERNAL_ERROR,
+      "Unauthorized",
+      HttpStatus.UNAUTHORIZED
+    );
   }
 
   @Post("v1/auth/refresh")
+  @Public()
   refresh(@Body() body: RefreshTokenDto) {
     return this.authService.refresh(body);
   }
 
   @Post("v1/auth/logout")
+  @Public()
   logout(@Body() body: LogoutDto) {
     return this.authService.logout(body);
   }
 
   @Get("v1/me")
+  @ApiBearerAuth()
   getMe(@Req() req: AppRequest<AuthenticatedUser>) {
     return this.authService.getMe(req.user);
   }
 
   @Patch("v1/me")
+  @ApiBearerAuth()
   updateMe(
     @Req() req: AppRequest<AuthenticatedUser>,
     @Body() body: UpdateProfileDto
@@ -141,6 +163,7 @@ export class AuthController {
 
   @Delete("v1/me")
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
   deleteMe(@Req() req: AppRequest<AuthenticatedUser>) {
     return this.authService.deleteMe(req.user);
   }

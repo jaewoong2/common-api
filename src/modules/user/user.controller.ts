@@ -9,24 +9,23 @@ import {
   Patch,
   Post,
   Req,
-  UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { RolesGuard } from '../../common/guards/roles.guard';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { AppRequest } from '@common/interfaces/app-request.interface';
+import { UserRole } from '@common/enums';
 
 /**
  * User Controller
  * @description Handles user CRUD endpoints
  */
 @ApiTags('users')
+@ApiBearerAuth()
 @Controller('v1/users')
-@UseGuards(RolesGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -34,7 +33,7 @@ export class UserController {
    * List all users in the app
    */
   @Get()
-  @Roles('APP_ADMIN')
+  @Roles(UserRole.APP_ADMIN)
   @ApiOperation({ summary: 'Get all users' })
   @ApiResponse({
     status: 200,
@@ -50,7 +49,7 @@ export class UserController {
    * Get user by ID
    */
   @Get(':id')
-  @Roles('APP_ADMIN', 'USER')
+  @Roles(UserRole.APP_ADMIN, UserRole.USER)
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiResponse({
     status: 200,
@@ -66,7 +65,7 @@ export class UserController {
    * Create new user
    */
   @Post()
-  @Roles('APP_ADMIN')
+  @Roles(UserRole.APP_ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create new user' })
   @ApiResponse({
@@ -87,7 +86,7 @@ export class UserController {
    * Update user
    */
   @Patch(':id')
-  @Roles('APP_ADMIN')
+  @Roles(UserRole.APP_ADMIN)
   @ApiOperation({ summary: 'Update user' })
   @ApiResponse({
     status: 200,
@@ -106,7 +105,7 @@ export class UserController {
    * Soft delete user
    */
   @Delete(':id')
-  @Roles('APP_ADMIN')
+  @Roles(UserRole.APP_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete user (soft delete)' })
   @ApiResponse({ status: 204, description: 'User deleted successfully' })

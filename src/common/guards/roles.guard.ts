@@ -1,5 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { UserRole } from '@common/enums';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -9,7 +10,11 @@ export class RolesGuard implements CanActivate {
    * Allows access when no roles are required or when user role matches metadata.
    */
   canActivate(context: ExecutionContext): boolean {
-    const roles = this.reflector.get<string[]>('roles', context.getHandler()) || [];
+    const roles =
+      this.reflector.getAllAndOverride<UserRole[]>('roles', [
+        context.getHandler(),
+        context.getClass(),
+      ]) || [];
     if (roles.length === 0) {
       return true;
     }

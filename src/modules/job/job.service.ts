@@ -1,27 +1,35 @@
-import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
-import { InjectEntityManager } from '@nestjs/typeorm';
-import { ConfigService } from '@nestjs/config';
-import { EntityManager } from 'typeorm';
-import { SQSClient, SendMessageCommand, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
-import { JobRepository } from './repositories/job.repository';
-import { AppRepository } from '../platform/repositories/app.repository';
-import { JobEntity } from '../../database/entities/job.entity';
-import { JobType, JobStatus, ExecutionType } from '../../common/enums';
-import { buildCanonicalString, signRequest } from '../../common/utils/hmac.util';
-import axios from 'axios';
-import { JsonObject } from '@common/types/json-value.type';
-import { AppEntity } from '../../database/entities/app.entity';
-import { MessageProcessorService } from './services/message-processor.service';
+import { Injectable, Logger, NotFoundException, Inject } from "@nestjs/common";
+import { InjectEntityManager } from "@nestjs/typeorm";
+import { ConfigService } from "@nestjs/config";
+import { EntityManager } from "typeorm";
+import {
+  SQSClient,
+  SendMessageCommand,
+  ReceiveMessageCommand,
+  DeleteMessageCommand,
+} from "@aws-sdk/client-sqs";
+import { JobRepository } from "./repositories/job.repository";
+import { AppRepository } from "../platform/repositories/app.repository";
+import { JobEntity } from "../../database/entities/job.entity";
+import { JobType, JobStatus, ExecutionType } from "../../common/enums";
+import {
+  buildCanonicalString,
+  signRequest,
+} from "../../common/utils/hmac.util";
+import axios from "axios";
+import { JsonObject } from "@common/types/json-value.type";
+import { AppEntity } from "../../database/entities/app.entity";
+import { MessageProcessorService } from "./services/message-processor.service";
 import {
   ExecutionConfigDto,
   JobMetadataDto,
   LambdaProxyMessageDto,
   UnifiedJobMessageDto,
-} from './dto/unified-job-message.dto';
-import { CreateUnifiedJobDto, JobCreationMode } from './dto/create-job.dto';
-import { AWS_SQS_CLIENT } from '../../infra/aws/aws-clients.module';
-import { randomUUID } from 'crypto';
-import { instanceToPlain, plainToInstance } from 'class-transformer';
+} from "./dto/unified-job-message.dto";
+import { CreateUnifiedJobDto, JobCreationMode } from "./dto/create-job.dto";
+import { AWS_SQS_CLIENT } from "../../infra/aws/aws-clients.module";
+import { randomUUID } from "crypto";
+import { instanceToPlain, plainToInstance } from "class-transformer";
 
 type CallbackJobPayload = {
   method: string;
@@ -49,7 +57,7 @@ export class JobService {
     @Inject(AWS_SQS_CLIENT)
     private readonly sqsClient: SQSClient,
     @InjectEntityManager()
-    private readonly entityManager: EntityManager,
+    private readonly entityManager: EntityManager
   ) {}
 
   /**
@@ -76,7 +84,7 @@ export class JobService {
       headers?: Record<string, string>;
       expectedStatuses?: number[];
     },
-    idempotencyKey?: string,
+    idempotencyKey?: string
   ): Promise<JobEntity> {
     return this.entityManager.transaction(async (manager) => {
       // Get app to retrieve callback settings
@@ -86,7 +94,7 @@ export class JobService {
       }
 
       if (!app.callbackBaseUrl || !app.callbackSecretRef) {
-        throw new Error('App callback configuration incomplete');
+        throw new Error("App callback configuration incomplete");
       }
 
       // Generate HMAC signature for the callback
@@ -95,7 +103,7 @@ export class JobService {
         payload.method,
         payload.path,
         payload.body,
-        timestamp,
+        timestamp
       );
       const signature = signRequest(app.callbackSecretRef, canonical);
 
@@ -116,7 +124,7 @@ export class JobService {
           maxRetries: 10,
           nextRetryAt: new Date(),
         },
-        manager,
+        manager
       );
     });
   }
@@ -141,7 +149,7 @@ export class JobService {
         } catch (error) {
           this.logger.error(
             `Failed to execute job ${job.id}: ${error.message}`,
-            error.stack,
+            error.stack
           );
         }
       }
@@ -157,7 +165,7 @@ export class JobService {
    */
   private async executeJob(
     job: JobEntity,
-    manager: EntityManager,
+    manager: EntityManager
   ): Promise<void> {
     const app = await this.appRepository.findById(job.appId, manager);
     if (!app) {
@@ -177,7 +185,7 @@ export class JobService {
   private async executeHttpCallback(
     job: JobEntity,
     app: AppEntity,
-    manager: EntityManager,
+    manager: EntityManager
   ): Promise<void> {
     const {
       method,
@@ -198,9 +206,9 @@ export class JobService {
         data: body,
         headers: {
           ...headers,
-          'Content-Type': 'application/json',
-          'X-HMAC-Signature': hmacSignature,
-          'X-HMAC-Timestamp': hmacTimestamp.toString(),
+          "Content-Type": "application/json",
+          "X-HMAC-Signature": hmacSignature,
+          "X-HMAC-Timestamp": hmacTimestamp.toString(),
         },
         timeout: 30000,
         validateStatus: (status) => expectedStatuses.includes(status),
@@ -215,7 +223,7 @@ export class JobService {
           nextRetryAt: null,
           lastError: null,
         },
-        manager,
+        manager
       );
     } catch (error) {
       // Retry logic
@@ -233,7 +241,7 @@ export class JobService {
             nextRetryAt: null,
             lastError: errorMessage,
           },
-          manager,
+          manager
         );
       } else {
         // Schedule retry with exponential backoff
@@ -241,7 +249,7 @@ export class JobService {
         const nextRetryAt = new Date(Date.now() + delaySeconds * 1000);
 
         this.logger.warn(
-          `Job ${job.id} retry ${retryCount}/${job.maxRetries} scheduled for ${nextRetryAt}`,
+          `Job ${job.id} retry ${retryCount}/${job.maxRetries} scheduled for ${nextRetryAt}`
         );
         await this.jobRepository.update(
           job.id,
@@ -250,7 +258,7 @@ export class JobService {
             nextRetryAt,
             lastError: errorMessage,
           },
-          manager,
+          manager
         );
       }
     }
@@ -289,7 +297,7 @@ export class JobService {
           nextRetryAt: new Date(),
           lastError: null,
         },
-        manager,
+        manager
       );
 
       return this.jobRepository.findById(jobId, manager);
@@ -314,7 +322,7 @@ export class JobService {
           status: JobStatus.DEAD,
           nextRetryAt: null,
         },
-        manager,
+        manager
       );
 
       return this.jobRepository.findById(jobId, manager);
@@ -329,12 +337,13 @@ export class JobService {
    * @returns Created job entity or null (SQS-only mode)
    */
   async createUnifiedJob(dto: CreateUnifiedJobDto): Promise<JobEntity | null> {
-    const mode = dto.mode || JobCreationMode.BOTH;
+    const mode = dto.mode || JobCreationMode.SQS;
     const jobId = randomUUID();
 
     // Set metadata
     dto.message.metadata.jobId = jobId;
-    dto.message.metadata.appId = dto.appId;
+    dto.message.metadata.appId =
+      dto.appId ?? "eb3fcbb2-7bb3-4ac7-aa38-1cb4bf00e405";
     dto.message.metadata.messageGroupId = dto.message.execution.type;
     dto.message.metadata.createdAt = new Date().toISOString();
     dto.message.metadata.retryCount = 0;
@@ -365,9 +374,9 @@ export class JobService {
    * @returns Number of messages processed
    */
   async pollAndProcessSqs(limit: number = 10): Promise<number> {
-    const queueUrl = this.configService.get<string>('aws.sqs.queueUrl');
+    const queueUrl = this.configService.get<string>("aws.sqs.queueUrl");
     if (!queueUrl) {
-      throw new Error('aws.sqs.queueUrl not configured');
+      throw new Error("aws.sqs.queueUrl not configured");
     }
 
     const command = new ReceiveMessageCommand({
@@ -385,31 +394,42 @@ export class JobService {
     let processed = 0;
     for (const sqsMessage of messages) {
       try {
-        const message: UnifiedJobMessageDto = JSON.parse(sqsMessage.Body || '{}');
+        const message: UnifiedJobMessageDto = JSON.parse(
+          sqsMessage.Body || "{}"
+        );
 
         // Process message
         await this.messageProcessor.processMessage(message);
 
         // Success - delete from SQS
-        await this.sqsClient.send(new DeleteMessageCommand({
-          QueueUrl: queueUrl,
-          ReceiptHandle: sqsMessage.ReceiptHandle,
-        }));
+        await this.sqsClient.send(
+          new DeleteMessageCommand({
+            QueueUrl: queueUrl,
+            ReceiptHandle: sqsMessage.ReceiptHandle,
+          })
+        );
 
-        this.logger.log(`SQS message processed successfully: jobId=${message.metadata.jobId}`);
+        this.logger.log(
+          `SQS message processed successfully: jobId=${message.metadata.jobId}`
+        );
         processed++;
       } catch (error) {
         this.logger.error(
           `Failed to process SQS message: ${error.message}`,
-          error.stack,
+          error.stack
         );
 
         // Parse message for DB save
         try {
-          const message: UnifiedJobMessageDto = JSON.parse(sqsMessage.Body || '{}');
+          const message: UnifiedJobMessageDto = JSON.parse(
+            sqsMessage.Body || "{}"
+          );
           await this.saveFailedJobToDb(message, error.message);
         } catch (parseError) {
-          this.logger.error('Failed to save failed job to DB', parseError.stack);
+          this.logger.error(
+            "Failed to save failed job to DB",
+            parseError.stack
+          );
         }
         // Keep message in SQS (visibility timeout will make it available again)
       }
@@ -446,7 +466,7 @@ export class JobService {
               nextRetryAt: null,
               lastError: null,
             },
-            manager,
+            manager
           );
 
           this.logger.log(`DB job ${job.id} completed successfully`);
@@ -457,7 +477,9 @@ export class JobService {
 
           if (retryCount >= job.maxRetries) {
             // Max retries reached
-            this.logger.error(`DB job ${job.id} failed after ${retryCount} retries`);
+            this.logger.error(
+              `DB job ${job.id} failed after ${retryCount} retries`
+            );
             await this.jobRepository.update(
               job.id,
               {
@@ -466,14 +488,14 @@ export class JobService {
                 nextRetryAt: null,
                 lastError: error.message,
               },
-              manager,
+              manager
             );
           } else {
             // Schedule retry with exponential backoff
             const nextRetryAt = this.calculateNextRetry(retryCount);
 
             this.logger.warn(
-              `DB job ${job.id} retry ${retryCount}/${job.maxRetries} scheduled for ${nextRetryAt}`,
+              `DB job ${job.id} retry ${retryCount}/${job.maxRetries} scheduled for ${nextRetryAt}`
             );
             await this.jobRepository.update(
               job.id,
@@ -483,7 +505,7 @@ export class JobService {
                 nextRetryAt,
                 lastError: error.message,
               },
-              manager,
+              manager
             );
           }
         }
@@ -509,11 +531,13 @@ export class JobService {
       //   }));
       // }
 
-      this.logger.log(`Scheduled message processed successfully: jobId=${message.metadata.jobId}`);
+      this.logger.log(
+        `Scheduled message processed successfully: jobId=${message.metadata.jobId}`
+      );
     } catch (error) {
       this.logger.error(
         `Failed to process scheduled message: ${error.message}`,
-        error.stack,
+        error.stack
       );
 
       // Save to DB for manual intervention
@@ -529,17 +553,17 @@ export class JobService {
    */
   private async createJobInDb(
     message: UnifiedJobMessageDto,
-    manager?: EntityManager,
+    manager?: EntityManager
   ): Promise<JobEntity> {
     const em = manager || this.entityManager;
     const appId = message.metadata.appId;
 
     if (!appId) {
-      throw new Error('metadata.appId is required to create a job');
+      throw new Error("metadata.appId is required to create a job");
     }
 
     const lambdaProxyMessage: JsonObject = instanceToPlain(
-      message.lambdaProxyMessage,
+      message.lambdaProxyMessage
     );
     const executionConfig: JsonObject = instanceToPlain(message.execution);
 
@@ -557,7 +581,7 @@ export class JobService {
         type: null,
         payload: null,
       },
-      em,
+      em
     );
   }
 
@@ -566,16 +590,18 @@ export class JobService {
    * @private
    */
   private async sendToSqs(message: UnifiedJobMessageDto): Promise<void> {
-    const queueUrl = this.configService.get<string>('aws.sqs.queueUrl');
+    const queueUrl = this.configService.get<string>("aws.sqs.queueUrl");
     if (!queueUrl) {
-      throw new Error('aws.sqs.queueUrl not configured');
+      throw new Error("aws.sqs.queueUrl not configured");
     }
 
     const command = new SendMessageCommand({
       QueueUrl: queueUrl,
       MessageBody: JSON.stringify(message),
       MessageGroupId: message.metadata.messageGroupId,
-      MessageDeduplicationId: message.metadata.idempotencyKey || `${message.metadata.jobId}-${Date.now()}`,
+      MessageDeduplicationId:
+        message.metadata.idempotencyKey ||
+        `${message.metadata.jobId}-${Date.now()}`,
     });
 
     await this.sqsClient.send(command);
@@ -588,17 +614,17 @@ export class JobService {
    */
   private async saveFailedJobToDb(
     message: UnifiedJobMessageDto,
-    error: string,
+    error: string
   ): Promise<void> {
     try {
       const appId = message.metadata.appId;
 
       if (!appId) {
-        throw new Error('metadata.appId is required to persist failed job');
+        throw new Error("metadata.appId is required to persist failed job");
       }
 
       const lambdaProxyMessage: JsonObject = instanceToPlain(
-        message.lambdaProxyMessage,
+        message.lambdaProxyMessage
       );
       const executionConfig: JsonObject = instanceToPlain(message.execution);
 
@@ -618,9 +644,11 @@ export class JobService {
         payload: null,
       });
 
-      this.logger.log(`Failed job saved to DB: jobId=${message.metadata.jobId}`);
+      this.logger.log(
+        `Failed job saved to DB: jobId=${message.metadata.jobId}`
+      );
     } catch (dbError) {
-      this.logger.error('Failed to save job to DB', dbError.stack);
+      this.logger.error("Failed to save job to DB", dbError.stack);
     }
   }
 
@@ -631,12 +659,12 @@ export class JobService {
   private dbJobToMessage(job: JobEntity): UnifiedJobMessageDto {
     const lambdaProxyMessage = plainToInstance(
       LambdaProxyMessageDto,
-      job.lambdaProxyMessage ?? {},
+      job.lambdaProxyMessage ?? {}
     );
 
     const execution = plainToInstance(
       ExecutionConfigDto,
-      job.executionConfig ?? {},
+      job.executionConfig ?? {}
     );
 
     if (!job.messageGroupId) {

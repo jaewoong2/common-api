@@ -1,0 +1,24 @@
+project_name        = "common-api"
+environment         = "dev"
+aws_region          = "ap-northeast-2"
+aws_profile         = "lime_admin"
+
+vpc_id              = "vpc-0123456789abcdef0"
+alb_subnet_ids      = ["subnet-0123456789abcdef0", "subnet-abcdef0123456789a"]
+service_subnet_ids  = ["subnet-0123456789abcdef0", "subnet-abcdef0123456789a"]
+
+ecr_repository_name = "common-api"
+image_tag           = "latest"
+container_name      = "common-api"
+
+container_port      = 8000
+desired_count       = 2
+task_cpu            = 512
+task_memory         = 1024
+assign_public_ip    = false
+health_check_path   = "/health"
+
+container_environment = {
+  NODE_ENV = "production"
+  PORT     = "8000"
+}

@@ -1,5 +1,11 @@
 # API Endpoints
 
+## Health Module
+
+| Method | Endpoint | Controller        | Handler | Auth   | Description                     |
+| ------ | -------- | ----------------- | ------- | ------ | ------------------------------- |
+| GET    | /health  | HealthController  | check   | Public | Service health check (no tenant/auth) |
+
 ## Auth Module
 
 | Method | Endpoint                         | Controller     | Handler         | Auth | Description                            |

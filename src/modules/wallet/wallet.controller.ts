@@ -7,10 +7,8 @@ import {
   Post,
   Query,
   Req,
-  UseGuards,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation } from "@nestjs/swagger";
-import { RolesGuard } from "../../common/guards/roles.guard";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { WalletService } from "./wallet.service";
 import {
   CreditWalletDto,
@@ -19,9 +17,12 @@ import {
   WalletLedgerQueryDto,
 } from "./dto/wallet.dto";
 import { AppRequest } from "@common/interfaces/app-request.interface";
+import { Roles } from "@common/decorators/roles.decorator";
+import { UserRole } from "@common/enums";
 
 @ApiTags('wallet')
-@UseGuards(RolesGuard)
+@ApiBearerAuth()
+@Roles(UserRole.APP_ADMIN)
 @Controller("v1/wallet")
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}

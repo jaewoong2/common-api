@@ -12,17 +12,17 @@ variable "aws_region" {
   default     = "ap-northeast-2"
 }
 
-variable "lambda_function_name" {
-  description = "Name of the Lambda function for job processing"
-  type        = string
-}
+# variable "lambda_function_name" {
+#   description = "Name of the Lambda function for job processing"
+#   type        = string
+# }
 
-variable "lambda_function_arn" {
-  description = "ARN of the Lambda function for job processing"
-  type        = string
-}
+# variable "lambda_function_arn" {
+#   description = "ARN of the Lambda function for job processing"
+#   type        = string
+# }
 
-variable "lambda_execution_role_name" {
-  description = "Name of the Lambda execution IAM role (to attach policies)"
-  type        = string
-}
+# variable "lambda_execution_role_name" {
+#   description = "Name of the Lambda execution IAM role (to attach policies)"
+#   type        = string
+# }

@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  lambda:
+    platform: linux/amd64
+    image: ${ECR_REPOSITORY:-common-api}:${LAMBDA_IMAGE_TAG:-lambda}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: lambda
+    environment:
+      - NODE_ENV=production
+
+  ecs:
+    platform: linux/amd64
+    image: ${ECR_REPOSITORY:-common-api}:${ECS_IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: ecs
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-8000}
+    ports:
+      - "${HOST_PORT:-8000}:${PORT:-8000}"

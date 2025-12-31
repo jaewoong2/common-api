@@ -28,8 +28,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const { httpAdapter } = this.httpAdapterHost;
     const ctx = host.switchToHttp();
-    const request = ctx.getRequest<{ id?: string }>();
+    const request = ctx.getRequest<{ id?: string; method?: string; url?: string; path?: string }>();
     const requestId = request?.id;
+    const method = request?.method || 'UNKNOWN';
+    const path = request?.url || request?.path || 'UNKNOWN';
 
     if (requestId) {
       this.logger.setRequestId(requestId);
@@ -37,10 +39,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const normalized = this.normalizeException(exception);
 
-    if (normalized.status >= HttpStatus.INTERNAL_SERVER_ERROR) {
-      const trace = exception instanceof Error ? exception.stack : undefined;
-      this.logger.error(normalized.message, trace);
-    }
+    this.logError(normalized, exception, method, path);
 
     const responseBody = {
       success: false,
@@ -54,6 +53,47 @@ export class HttpExceptionFilter implements ExceptionFilter {
     };
 
     httpAdapter.reply(ctx.getResponse(), responseBody, normalized.status);
+  }
+
+  /**
+   * Logs error to terminal with appropriate level and context
+   * @param normalized - Normalized error object
+   * @param exception - Original exception
+   * @param method - HTTP method
+   * @param path - Request path
+   */
+  private logError(
+    normalized: NormalizedError,
+    exception: unknown,
+    method: string,
+    path: string,
+  ): void {
+    const status = normalized.status;
+    const contextInfo = `[${method} ${path}]`;
+    const errorInfo = `${normalized.code}: ${normalized.message}`;
+    const fullMessage = `${contextInfo} ${errorInfo}`;
+
+    // 5xx errors - Critical server errors
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      const trace = exception instanceof Error ? exception.stack : undefined;
+      this.logger.error(fullMessage, trace);
+
+      // Log additional details if present
+      if (normalized.details) {
+        this.logger.error(`Details: ${JSON.stringify(normalized.details)}`);
+      }
+      return;
+    }
+
+    // 4xx errors - Client errors (validation, auth, not found, etc.)
+    if (status >= HttpStatus.BAD_REQUEST) {
+      this.logger.warn(fullMessage);
+
+      // Log validation details if present
+      if (normalized.details) {
+        this.logger.warn(`Details: ${JSON.stringify(normalized.details, null, 2)}`);
+      }
+    }
   }
 
   private normalizeException(exception: unknown): NormalizedError {
