@@ -51,4 +51,4 @@ lerna-debug.log*
 
 .env*
 
-*terraform*
+.terraform*
