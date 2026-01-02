@@ -30,6 +30,7 @@ import { CreateUnifiedJobDto, JobCreationMode } from "./dto/create-job.dto";
 import { AWS_SQS_CLIENT } from "../../infra/aws/aws-clients.module";
 import { randomUUID } from "crypto";
 import { instanceToPlain, plainToInstance } from "class-transformer";
+import { validateSync, ValidationError } from "class-validator";
 
 type CallbackJobPayload = {
   method: string;
@@ -393,10 +394,9 @@ export class JobService {
 
     let processed = 0;
     for (const sqsMessage of messages) {
+      let message: UnifiedJobMessageDto | null = null;
       try {
-        const message: UnifiedJobMessageDto = JSON.parse(
-          sqsMessage.Body || "{}"
-        );
+        message = this.parseAndValidateJobMessage(sqsMessage.Body);
 
         // Process message
         await this.messageProcessor.processMessage(message);
@@ -414,21 +414,21 @@ export class JobService {
         );
         processed++;
       } catch (error) {
+        const errorMessage = this.getErrorMessage(error);
         this.logger.error(
-          `Failed to process SQS message: ${error.message}`,
-          error.stack
+          `Failed to process SQS message: ${errorMessage}`,
+          error instanceof Error ? error.stack : undefined
         );
 
         // Parse message for DB save
         try {
-          const message: UnifiedJobMessageDto = JSON.parse(
-            sqsMessage.Body || "{}"
-          );
-          await this.saveFailedJobToDb(message, error.message);
+          const failedMessage =
+            message ?? this.parseAndValidateJobMessage(sqsMessage.Body);
+          await this.saveFailedJobToDb(failedMessage, errorMessage);
         } catch (parseError) {
           this.logger.error(
             "Failed to save failed job to DB",
-            parseError.stack
+            parseError instanceof Error ? parseError.stack : undefined
           );
         }
         // Keep message in SQS (visibility timeout will make it available again)
@@ -694,5 +694,65 @@ export class JobService {
   private calculateNextRetry(retryCount: number): Date {
     const delaySeconds = Math.min(Math.pow(2, retryCount) * 60, 86400); // Cap at 24h
     return new Date(Date.now() + delaySeconds * 1000);
+  }
+
+  /**
+   * Parse and validate SQS message into UnifiedJobMessageDto
+   * @private
+   */
+  private parseAndValidateJobMessage(
+    rawBody?: string
+  ): UnifiedJobMessageDto {
+    if (!rawBody) {
+      throw new Error("SQS message body is empty");
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch (parseError) {
+      throw new Error("Invalid JSON in SQS message body");
+    }
+
+    const message = plainToInstance(UnifiedJobMessageDto, parsed);
+    const errors = validateSync(message, {
+      whitelist: true,
+      forbidUnknownValues: true,
+    });
+
+    if (errors.length > 0) {
+      const formatted = this.formatValidationErrors(errors);
+      throw new Error(
+        `Invalid SQS message payload: ${formatted || "validation failed"}`
+      );
+    }
+
+    return message;
+  }
+
+  private formatValidationErrors(errors: ValidationError[]): string {
+    const messages: string[] = [];
+
+    for (const error of errors) {
+      if (error.constraints) {
+        messages.push(...Object.values(error.constraints));
+      }
+
+      if (error.children && error.children.length > 0) {
+        const childMessages = this.formatValidationErrors(error.children);
+        if (childMessages) {
+          messages.push(childMessages);
+        }
+      }
+    }
+
+    return messages.join("; ");
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+    return "Unknown error";
   }
 }

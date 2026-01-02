@@ -278,6 +278,7 @@
 | `createJobInDb`       | src/modules/job/job.service.ts     | Save job to database                               | `message: UnifiedJobMessageDto`, `manager?: EntityManager` | `Promise<JobEntity>`  | `createJobInDb(message, manager)`                |
 | `sendToSqs`           | src/modules/job/job.service.ts     | Send message to SQS FIFO queue                     | `message: UnifiedJobMessageDto`                 | `Promise<void>`       | `sendToSqs(message)`                             |
 | `saveFailedJobToDb`   | src/modules/job/job.service.ts     | Save failed job to DB for retry                    | `message: UnifiedJobMessageDto`, `error: string`| `Promise<void>`       | `saveFailedJobToDb(message, error)`              |
+| `parseAndValidateJobMessage` | src/modules/job/job.service.ts     | Parse raw SQS body and validate into DTO           | `rawBody?: string`                              | `UnifiedJobMessageDto`| `parseAndValidateJobMessage(body)`               |
 | `dbJobToMessage`      | src/modules/job/job.service.ts     | Convert JobEntity to UnifiedJobMessage             | `job: JobEntity`                                | `UnifiedJobMessageDto`| `dbJobToMessage(job)`                            |
 | `calculateNextRetry`  | src/modules/job/job.service.ts     | Calculate exponential backoff (min 2^n*60s, max 24h) | `retryCount: number`                         | `Date`                | `calculateNextRetry(3)`                          |
 

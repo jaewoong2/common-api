@@ -7,6 +7,8 @@ import {
   IsOptional,
   IsEnum,
   IsBoolean,
+  IsDefined,
+  IsInt,
   ValidateNested,
 } from "class-validator";
 import { ExecutionType } from "@common/enums";
@@ -65,6 +67,7 @@ export class JobMetadataDto {
     description: "Current retry count",
   })
   @IsOptional()
+  @IsInt()
   retryCount?: number;
 }
 
@@ -236,6 +239,7 @@ export class UnifiedJobMessageDto {
     type: LambdaProxyMessageDto,
     description: "Lambda proxy event structure",
   })
+  @IsDefined()
   @ValidateNested()
   @Type(() => LambdaProxyMessageDto)
   lambdaProxyMessage: LambdaProxyMessageDto;
@@ -244,6 +248,7 @@ export class UnifiedJobMessageDto {
     type: ExecutionConfigDto,
     description: "Execution configuration",
   })
+  @IsDefined()
   @ValidateNested()
   @Type(() => ExecutionConfigDto)
   execution: ExecutionConfigDto;
@@ -252,6 +257,7 @@ export class UnifiedJobMessageDto {
     type: JobMetadataDto,
     description: "Job metadata",
   })
+  @IsDefined()
   @ValidateNested()
   @Type(() => JobMetadataDto)
   metadata: JobMetadataDto;

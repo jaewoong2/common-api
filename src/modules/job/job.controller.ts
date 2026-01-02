@@ -16,8 +16,6 @@ import { CreateCallbackJobDto, RunJobsDto } from "./dto/job.dto";
 import { CreateUnifiedJobDto } from "./dto/create-job.dto";
 import { UnifiedJobMessageDto } from "./dto/unified-job-message.dto";
 import { JobService } from "./job.service";
-import { Roles } from "@common/decorators/roles.decorator";
-import { UserRole } from "@common/enums";
 
 @ApiTags("job")
 @ApiBearerAuth()
