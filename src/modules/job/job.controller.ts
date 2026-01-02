@@ -11,17 +11,22 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiBody,
 } from "@nestjs/swagger";
 import { CreateCallbackJobDto, RunJobsDto } from "./dto/job.dto";
 import { CreateUnifiedJobDto } from "./dto/create-job.dto";
 import { UnifiedJobMessageDto } from "./dto/unified-job-message.dto";
 import { JobService } from "./job.service";
+import { MultiQueuePollingService } from "./services/multi-queue-polling.service";
 
 @ApiTags("job")
 @ApiBearerAuth()
 @Controller()
 export class JobController {
-  constructor(private readonly jobService: JobService) {}
+  constructor(
+    private readonly jobService: JobService,
+    private readonly multiQueuePollingService: MultiQueuePollingService
+  ) {}
 
   // ========== Legacy Endpoints (Backward Compatibility) ==========
 
@@ -94,5 +99,37 @@ export class JobController {
   async processScheduledMessage(@Body() message: UnifiedJobMessageDto) {
     await this.jobService.processScheduledMessage(message);
     return { success: true };
+  }
+
+  @Post("internal/v1/poll-source-queue")
+  @ApiOperation({
+    summary: "Poll source queue and forward to main queue",
+    description: "Called by EventBridge scheduler for crypto.fifo and ox.fifo",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Messages processed successfully",
+  })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        queueName: { type: "string", enum: ["crypto", "ox"] },
+        limit: { type: "number" },
+      },
+    },
+  })
+  async pollSourceQueue(
+    @Body() body: { queueName: "crypto" | "ox"; limit?: number }
+  ) {
+    const processed = await this.multiQueuePollingService.pollQueue(
+      body.queueName,
+      body.limit
+    );
+    return {
+      queueName: body.queueName,
+      processed,
+      timestamp: new Date().toISOString(),
+    };
   }
 }
