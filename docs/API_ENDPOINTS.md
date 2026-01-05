@@ -1,5 +1,32 @@
 # API Endpoints
 
+## Authentication Headers
+
+JWT 인증은 다음 헤더 중 하나를 사용할 수 있습니다:
+
+1. **Authorization** (권장):
+   ```
+   Authorization: Bearer <jwt_token>
+   ```
+
+2. **JWT_AUTH** (대체):
+   ```
+   JWT_AUTH: Bearer <jwt_token>
+   ```
+
+**우선순위**: Authorization 헤더가 있으면 JWT_AUTH는 무시됩니다.
+
+**예시**:
+```bash
+# Authorization 헤더 사용 (권장)
+curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  https://api.example.com/v1/me
+
+# JWT_AUTH 헤더 사용 (대체)
+curl -H "JWT_AUTH: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  https://api.example.com/v1/me
+```
+
 ## Health Module
 
 | Method | Endpoint | Controller        | Handler | Auth   | Description                     |

@@ -7,6 +7,7 @@ import {
   SendMessageCommand,
   ReceiveMessageCommand,
   DeleteMessageCommand,
+  Message,
 } from "@aws-sdk/client-sqs";
 import { JobRepository } from "./repositories/job.repository";
 import { AppRepository } from "../platform/repositories/app.repository";
@@ -349,23 +350,31 @@ export class JobService {
     dto.message.metadata.createdAt = new Date().toISOString();
     dto.message.metadata.retryCount = 0;
 
-    switch (mode) {
-      case JobCreationMode.DB:
-        return this.createJobInDb(dto.message);
+    try {
+      switch (mode) {
+        case JobCreationMode.DB:
+          return this.createJobInDb(dto.message);
 
-      case JobCreationMode.SQS:
-        await this.sendToSqs(dto.message);
-        return null;
-
-      case JobCreationMode.BOTH:
-        return this.entityManager.transaction(async (manager) => {
-          const job = await this.createJobInDb(dto.message, manager);
+        case JobCreationMode.SQS:
           await this.sendToSqs(dto.message);
-          return job;
-        });
+          return null;
 
-      default:
-        throw new Error(`Unknown job creation mode: ${mode}`);
+        case JobCreationMode.BOTH:
+          return this.entityManager.transaction(async (manager) => {
+            const job = await this.createJobInDb(dto.message, manager);
+            await this.sendToSqs(dto.message);
+            return job;
+          });
+
+        default:
+          throw new Error(`Unknown job creation mode: ${mode}`);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to create unified job: ${error.message}`,
+        error.stack
+      );
+      throw error;
     }
   }
 
@@ -380,20 +389,30 @@ export class JobService {
       throw new Error("aws.sqs.queueUrl not configured");
     }
 
-    const command = new ReceiveMessageCommand({
-      QueueUrl: queueUrl,
-      MaxNumberOfMessages: Math.min(limit, 10),
-      WaitTimeSeconds: 0,
-      VisibilityTimeout: 300,
-    });
+    const sqsMessages: Message[] = [];
 
-    const response = await this.sqsClient.send(command);
-    const messages = response.Messages || [];
+    try {
+      const command = new ReceiveMessageCommand({
+        QueueUrl: queueUrl,
+        MaxNumberOfMessages: Math.min(limit, 10),
+        WaitTimeSeconds: 1,
+        VisibilityTimeout: 30,
+      });
 
-    this.logger.log(`Received ${messages.length} messages from SQS`);
+      const response = await this.sqsClient.send(command);
+      sqsMessages.push(...(response.Messages || []));
+    } catch (error) {
+      this.logger.error(
+        `Failed to receive messages from SQS: ${error.message}`,
+        error.stack
+      );
+      throw error;
+    }
+
+    this.logger.warn(`Received ${sqsMessages.length} messages from SQS`);
 
     let processed = 0;
-    for (const sqsMessage of messages) {
+    for (const sqsMessage of sqsMessages) {
       let message: UnifiedJobMessageDto | null = null;
       try {
         message = this.parseAndValidateJobMessage(sqsMessage.Body);
@@ -415,6 +434,10 @@ export class JobService {
         processed++;
       } catch (error) {
         const errorMessage = this.getErrorMessage(error);
+        const errorDetails =
+          error instanceof Error && error.stack
+            ? `${errorMessage} | stack: ${error.stack}`
+            : errorMessage;
         this.logger.error(
           `Failed to process SQS message: ${errorMessage}`,
           error instanceof Error ? error.stack : undefined
@@ -424,7 +447,7 @@ export class JobService {
         try {
           const failedMessage =
             message ?? this.parseAndValidateJobMessage(sqsMessage.Body);
-          await this.saveFailedJobToDb(failedMessage, errorMessage);
+          await this.saveFailedJobToDb(failedMessage, errorDetails);
         } catch (parseError) {
           this.logger.error(
             "Failed to save failed job to DB",
@@ -589,23 +612,35 @@ export class JobService {
    * Send message to SQS
    * @private
    */
-  private async sendToSqs(message: UnifiedJobMessageDto): Promise<void> {
+  private async sendToSqs(message: UnifiedJobMessageDto) {
     const queueUrl = this.configService.get<string>("aws.sqs.queueUrl");
     if (!queueUrl) {
       throw new Error("aws.sqs.queueUrl not configured");
     }
 
-    const command = new SendMessageCommand({
-      QueueUrl: queueUrl,
-      MessageBody: JSON.stringify(message),
-      MessageGroupId: message.metadata.messageGroupId,
-      MessageDeduplicationId:
-        message.metadata.idempotencyKey ||
-        `${message.metadata.jobId}-${Date.now()}`,
-    });
+    try {
+      const command = new SendMessageCommand({
+        QueueUrl: queueUrl,
+        MessageBody: JSON.stringify(message),
+        MessageGroupId: `${message.metadata.messageGroupId}-${message.metadata.jobId}`,
+        MessageDeduplicationId:
+          message.metadata.idempotencyKey ||
+          `${message.metadata.jobId}-${Date.now()}`,
+      });
+      const response = await this.sqsClient.send(command);
+      this.logger.log(
+        `Message sent to SQS: jobId=${message.metadata.jobId}`,
+        response
+      );
 
-    await this.sqsClient.send(command);
-    this.logger.log(`Message sent to SQS: jobId=${message.metadata.jobId}`);
+      return response;
+    } catch (error) {
+      this.logger.error(
+        `Failed to send message to SQS: ${error.message}`,
+        error.stack
+      );
+      throw error;
+    }
   }
 
   /**
@@ -700,9 +735,7 @@ export class JobService {
    * Parse and validate SQS message into UnifiedJobMessageDto
    * @private
    */
-  private parseAndValidateJobMessage(
-    rawBody?: string
-  ): UnifiedJobMessageDto {
+  private parseAndValidateJobMessage(rawBody?: string): UnifiedJobMessageDto {
     if (!rawBody) {
       throw new Error("SQS message body is empty");
     }

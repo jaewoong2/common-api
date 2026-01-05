@@ -1,9 +1,11 @@
 import { ValidationPipe } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { HttpAdapterHost, NestFactory } from "@nestjs/core";
 import { FastifyAdapter } from "@nestjs/platform-fastify";
 import serverless from "@fastify/aws-lambda";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
+import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { ResponseInterceptor } from "./common/interceptors/response.interceptor";
 import { AppLogger } from "./core/logger/logger.service";
 
@@ -20,6 +22,8 @@ async function bootstrapLambdaProxy() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   const httpAdapterHost = app.get(HttpAdapterHost);
   app.useGlobalFilters(new HttpExceptionFilter(httpAdapterHost));
+  const configService = app.get(ConfigService);
+  app.useGlobalInterceptors(new LoggingInterceptor(configService));
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.enableShutdownHooks();
   await app.init();

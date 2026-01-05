@@ -19,6 +19,7 @@ import { ExecutionType } from "../../../common/enums";
 import { JobService } from "../job.service";
 import { JobCreationMode } from "../dto/create-job.dto";
 import { AWS_SQS_CLIENT } from "../../../infra/aws/aws-clients.module";
+import { MessageProcessorService } from "./message-processor.service";
 
 /**
  * Queue Configuration Interface
@@ -26,9 +27,13 @@ import { AWS_SQS_CLIENT } from "../../../infra/aws/aws-clients.module";
 interface QueueConfig {
   queueUrl: string;
   maxMessages: number;
+  intervalMs: number;
   visibilityTimeout: number;
   enabled: boolean;
+  targetLambda: string;
 }
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Multi-Queue Polling Service
@@ -42,7 +47,8 @@ export class MultiQueuePollingService {
   constructor(
     private readonly configService: ConfigService,
     @Inject(AWS_SQS_CLIENT) private readonly sqsClient: SQSClient,
-    private readonly jobService: JobService
+    private readonly jobService: JobService,
+    private readonly messageProcessor: MessageProcessorService
   ) {
     this.mainQueueUrl =
       this.configService.get<string>("aws.sqs.queueUrl") || "";
@@ -54,32 +60,32 @@ export class MultiQueuePollingService {
    * @param limit Optional limit (overrides config)
    * @returns Number of messages processed
    */
-  async pollQueue(queueName: string, limit?: number): Promise<number> {
+  async pollQueue(queueConfig: QueueConfig): Promise<number> {
     const startTime = Date.now();
 
     try {
-      // 1. Get queue configuration
-      const queueConfig = this.getQueueConfig(queueName);
-
       if (!queueConfig.enabled) {
-        this.logger.warn(`Queue "${queueName}" is disabled in configuration`);
+        this.logger.warn(
+          `Queue "${queueConfig.queueUrl}" is disabled in configuration`
+        );
         return 0;
       }
 
       if (!queueConfig.queueUrl) {
-        this.logger.warn(`Queue URL not configured for "${queueName}"`);
+        this.logger.warn(
+          `Queue URL not configured for "${queueConfig.queueUrl}"`
+        );
         return 0;
       }
 
       // 2. Receive messages from source queue
-      const maxMessages =
-        limit !== undefined ? Math.min(limit, 10) : queueConfig.maxMessages;
+      const maxMessages = queueConfig.maxMessages;
       const messages = await this.receiveMessages(queueConfig, maxMessages);
 
       if (messages.length === 0) {
         this.logger.log({
           event: "queue_poll_completed",
-          queueName,
+          url: queueConfig.queueUrl,
           messagesReceived: 0,
           messagesForwarded: 0,
           messagesFailed: 0,
@@ -88,41 +94,51 @@ export class MultiQueuePollingService {
         return 0;
       }
 
-      this.logger.log(`[${queueName}] Received ${messages.length} messages`);
+      this.logger.log(
+        `[${queueConfig.queueUrl}] Received ${messages.length} messages`
+      );
 
       // 3. Process each message
       let forwarded = 0;
       let failed = 0;
 
-      for (const sqsMessage of messages) {
+      for (let index = 0; index < messages.length; index++) {
+        const sqsMessage = messages[index];
         try {
           // 4. Parse and validate message
           const sourceMessage = await this.parseAndValidateMessage(sqsMessage);
 
+          sourceMessage.functionName = queueConfig.targetLambda;
+
           // 5. Transform to unified format
           const unifiedMessage = this.transformMessage(
             sourceMessage,
-            queueName
+            queueConfig.queueUrl
           );
 
           // 6. Forward to jobs-main.fifo
-          await this.forwardToMainQueue(unifiedMessage);
+          await this.messageProcessor.processMessage(unifiedMessage);
 
           // 7. Delete from source queue (success)
           await this.deleteMessage(
             queueConfig.queueUrl,
-            sqsMessage.ReceiptHandle!
+            sqsMessage.ReceiptHandle
           );
 
           forwarded++;
           this.logger.log(
-            `[${queueName}] Forwarded msgId=${sqsMessage.MessageId}`
+            `[${queueConfig.queueUrl}] Forwarded msgId=${sqsMessage.MessageId}`
           );
+
+          // 마지막이 아니면 rate-limit 간격 대기
+          if (index < messages.length - 1 && queueConfig.intervalMs > 0) {
+            await sleep(queueConfig.intervalMs);
+          }
         } catch (error) {
           failed++;
           this.logger.error({
             event: "message_forward_failed",
-            queueName,
+            queueUrl: queueConfig.queueUrl,
             messageId: sqsMessage.MessageId,
             error: error instanceof Error ? error.message : String(error),
           });
@@ -130,7 +146,7 @@ export class MultiQueuePollingService {
           // 8. Save to DB on failure (never lose messages)
           await this.saveFailedMessage(
             sqsMessage,
-            queueName,
+            queueConfig.queueUrl,
             error instanceof Error ? error.message : String(error)
           );
         }
@@ -140,7 +156,7 @@ export class MultiQueuePollingService {
       const durationMs = Date.now() - startTime;
       this.logger.log({
         event: "queue_poll_completed",
-        queueName,
+        queueUrl: queueConfig.queueUrl,
         messagesReceived: messages.length,
         messagesForwarded: forwarded,
         messagesFailed: failed,
@@ -151,7 +167,7 @@ export class MultiQueuePollingService {
     } catch (error) {
       this.logger.error({
         event: "queue_poll_error",
-        queueName,
+        queueUrl: queueConfig.queueUrl,
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
@@ -163,17 +179,18 @@ export class MultiQueuePollingService {
    * @param queueName Queue name
    * @returns Queue configuration
    */
-  private getQueueConfig(queueName: string): QueueConfig {
-    const config =
-      this.configService.get<Record<string, QueueConfig>>(
-        "aws.sqs.sourceQueues"
-      ) || {};
+  getQueueConfig(): QueueConfig[] {
+    const configs = this.configService.get<Record<string, QueueConfig>>(
+      "aws.sqs.sourceQueues"
+    );
 
-    if (!config[queueName]) {
-      throw new Error(`Queue "${queueName}" not found in configuration`);
+    const result: QueueConfig[] = [];
+
+    for (const queueName in configs) {
+      result.push(configs[queueName]);
     }
 
-    return config[queueName];
+    return result;
   }
 
   /**
@@ -250,7 +267,7 @@ export class MultiQueuePollingService {
     const executionType =
       sourceMessage.executionType ||
       sourceMessage.execution?.type ||
-      ExecutionType.REST_API;
+      ExecutionType.LAMBDA_INVOKE;
 
     return {
       lambdaProxyMessage,
@@ -369,27 +386,6 @@ export class MultiQueuePollingService {
     return {
       "Content-Type": "application/json",
     };
-  }
-
-  /**
-   * Forward unified message to jobs-main.fifo
-   * @param message Unified job message
-   */
-  private async forwardToMainQueue(
-    message: UnifiedJobMessageDto
-  ): Promise<void> {
-    if (!this.mainQueueUrl) {
-      throw new Error("Main queue URL not configured (AWS_SQS_QUEUE_URL)");
-    }
-
-    const command = new SendMessageCommand({
-      QueueUrl: this.mainQueueUrl,
-      MessageBody: JSON.stringify(message),
-      MessageGroupId: message.metadata.messageGroupId,
-      MessageDeduplicationId: message.metadata.idempotencyKey,
-    });
-
-    await this.sqsClient.send(command);
   }
 
   /**

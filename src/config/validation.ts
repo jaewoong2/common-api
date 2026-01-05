@@ -17,6 +17,12 @@ const validationSchema = Joi.object({
   // AWS credentials are optional - SDK handles them via env vars or IAM roles
   AWS_ACCESS_KEY_ID: Joi.string().optional(),
   AWS_SECRET_ACCESS_KEY: Joi.string().optional(),
+  // Logging Configuration
+  LOG_LEVEL: Joi.string()
+    .valid("basic", "detailed", "none")
+    .default("basic"),
+  LOG_MAX_PAYLOAD_SIZE: Joi.number().min(1000).max(100000).default(10000),
+  LOG_EXCLUDE_ROUTES: Joi.string().default("/health,/metrics,/api-docs"),
 });
 
 export default validationSchema;

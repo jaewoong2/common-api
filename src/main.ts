@@ -1,4 +1,5 @@
 import { ValidationPipe } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { HttpAdapterHost, NestFactory } from "@nestjs/core";
 import {
   FastifyAdapter,
@@ -7,6 +8,7 @@ import {
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
+import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { ResponseInterceptor } from "./common/interceptors/response.interceptor";
 import { AppLogger } from "./core/logger/logger.service";
 
@@ -27,7 +29,12 @@ function configureHttp(app: NestFastifyApplication): void {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   const httpAdapterHost = app.get(HttpAdapterHost);
   app.useGlobalFilters(new HttpExceptionFilter(httpAdapterHost));
+
+  // Register LoggingInterceptor BEFORE ResponseInterceptor for accurate timing
+  const configService = app.get(ConfigService);
+  app.useGlobalInterceptors(new LoggingInterceptor(configService));
   app.useGlobalInterceptors(new ResponseInterceptor());
+
   app.enableShutdownHooks();
 }
 

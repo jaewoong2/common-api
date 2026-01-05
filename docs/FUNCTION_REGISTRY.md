@@ -31,7 +31,8 @@
 | Function/Method          | File                                       | Description                                        | Parameters                                  | Return             | Example                                                        |
 | ------------------------ | ------------------------------------------ | -------------------------------------------------- | ------------------------------------------- | ------------------ | -------------------------------------------------------------- |
 | `catch`                  | src/common/filters/http-exception.filter.ts| Normalizes errors into `{success:false, error{code,message,details?}, request_id, timestamp}` | `exception: unknown`, `host: ArgumentsHost` | `void`             | Used as a global filter                                        |
-| `intercept`              | src/common/interceptors/response.interceptor.ts| Wraps successful responses with `success`, `data`, `request_id`, `timestamp` | `context: ExecutionContext`, `next: CallHandler` | `Observable<any>` | Used as a global interceptor                                   |
+| `intercept` (Logging)    | src/common/interceptors/logging.interceptor.ts| Logs HTTP requests/responses with timing and sanitized payloads | `context: ExecutionContext`, `next: CallHandler` | `Observable<any>` | Used as a global interceptor (before ResponseInterceptor)      |
+| `intercept` (Response)   | src/common/interceptors/response.interceptor.ts| Wraps successful responses with `success`, `data`, `request_id`, `timestamp` | `context: ExecutionContext`, `next: CallHandler` | `Observable<any>` | Used as a global interceptor                                   |
 | `use`                    | src/core/logger/request-id.middleware.ts   | Ensures `X-Request-Id` header and sets `req.id`    | `req`, `res`, `next`                        | `void`             | Registered for all routes                                      |
 | `FastifyPassportGuard`   | src/common/guards/fastify-passport.guard.ts| Returns Passport guard compatible with Fastify responses | `strategy?: string \| string[]`         | `Type<IAuthGuard>` | `@UseGuards(FastifyPassportGuard('google'))`                   |
 | `JwtAuthGuard`           | src/common/guards/jwt-auth.guard.ts        | Global guard enforcing bearer JWT unless `@Public` | `context: ExecutionContext`                 | `boolean \| Promise<boolean>` | Provided globally via `APP_GUARD`                              |
@@ -76,9 +77,10 @@
 
 ### JWT Strategy
 
-| Function/Method | File                                        | Description                                      | Parameters                      | Return                        | Example                               |
-| --------------- | ------------------------------------------- | ------------------------------------------------ | ------------------------------- | ----------------------------- | ------------------------------------- |
-| `validate`      | src/modules/auth/strategies/jwt.strategy.ts | Maps JWT payload to `AuthenticatedUser` for req   | `payload: JwtPayload`           | `Promise<AuthenticatedUser>`  | `jwtStrategy.validate(payload)`       |
+| Function/Method         | File                                        | Description                                                                     | Parameters                      | Return                        | Example                               |
+| ----------------------- | ------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------- | ----------------------------- | ------------------------------------- |
+| `extractJwtFromHeaders` | src/modules/auth/strategies/jwt.strategy.ts | JWT 토큰을 Authorization 또는 JWT_AUTH 헤더에서 추출 (우선순위: Authorization > JWT_AUTH) | `request: any`                  | `string \| null`              | `extractJwtFromHeaders(req)`          |
+| `validate`              | src/modules/auth/strategies/jwt.strategy.ts | Maps JWT payload to `AuthenticatedUser` for req                                 | `payload: JwtPayload`           | `Promise<AuthenticatedUser>`  | `jwtStrategy.validate(payload)`       |
 
 ### OAuth Profile Utilities (Kakao)
 
@@ -324,5 +326,11 @@
 | `suspendApp`         | src/modules/platform/platform.service.ts| Suspend app                         | `appId: string`                                                            | `Promise<AppEntity>`   | `platformService.suspendApp(appId)`          |
 | `activateApp`        | src/modules/platform/platform.service.ts| Activate app                        | `appId: string`                                                            | `Promise<AppEntity>`   | `platformService.activateApp(appId)`         |
 | `updateApp`          | src/modules/platform/platform.service.ts| Updates app callback configuration  | `appId: string`, `UpdateAppDto`  | `Promise<never>`* | `platformService.updateApp(id, dto)`         |
+
+## Common Utilities
+
+| Function                  | File                            | Description                                              | Parameters                                    | Return    | Example                                    |
+| ------------------------- | ------------------------------- | -------------------------------------------------------- | --------------------------------------------- | --------- | ------------------------------------------ |
+| `sanitizeSensitiveData`   | src/common/utils/sanitizer.util.ts | Recursively masks sensitive fields in objects/arrays  | `data: unknown`, `maxDepth?: number`          | `unknown` | `sanitizeSensitiveData({ password: '123' })` |
 
 > \*Services currently throw `NotImplementedException` placeholders.

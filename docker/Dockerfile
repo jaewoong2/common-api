@@ -26,7 +26,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/.env ./.env
 
 # Lambda handler entrypoint
-CMD ["dist/lambda.handler"]
+CMD ["dist/src/lambda.handler"]
 
 # ECS/Fargate runtime image (Alpine)
 FROM node:20-alpine AS ecs
@@ -45,4 +45,4 @@ COPY --from=builder /app/.env ./.env
 EXPOSE 8000
 
 # Fastify/Nest entrypoint for ECS
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]

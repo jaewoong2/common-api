@@ -110,24 +110,21 @@ export class JobController {
     status: 200,
     description: "Messages processed successfully",
   })
-  @ApiBody({
-    schema: {
-      type: "object",
-      properties: {
-        queueName: { type: "string", enum: ["crypto", "ox"] },
-        limit: { type: "number" },
-      },
-    },
-  })
-  async pollSourceQueue(
-    @Body() body: { queueName: "crypto" | "ox"; limit?: number }
-  ) {
-    const processed = await this.multiQueuePollingService.pollQueue(
-      body.queueName,
-      body.limit
-    );
+  @ApiBody({})
+  async pollSourceQueue() {
+    const configs = this.multiQueuePollingService.getQueueConfig();
+    let processed: Record<string, number> = {};
+
+    for (const config of configs) {
+      if (!(config.queueUrl in processed)) {
+        processed[config.queueUrl] = 0;
+      }
+
+      processed[config.queueUrl] +=
+        await this.multiQueuePollingService.pollQueue(config);
+    }
+
     return {
-      queueName: body.queueName,
       processed,
       timestamp: new Date().toISOString(),
     };

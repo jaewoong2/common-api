@@ -1,4 +1,5 @@
 import awsConfig from './aws.config';
+import loggerConfig from './logger.config';
 
 export default () => ({
   env: process.env.NODE_ENV || "local",
@@ -36,4 +37,5 @@ export default () => ({
     },
   },
   aws: awsConfig(),
+  logger: loggerConfig(),
 });

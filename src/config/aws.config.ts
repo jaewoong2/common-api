@@ -7,6 +7,8 @@ import { registerAs } from "@nestjs/config";
 export default registerAs("aws", () => ({
   /** Default AWS region */
   region: process.env.AWS_DEFAULT_REGION || "ap-northeast-2",
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
 
   /** AWS SES (Simple Email Service) */
   ses: {
@@ -27,17 +29,29 @@ export default registerAs("aws", () => ({
 
     /** Source queues for multi-queue bridging */
     sourceQueues: {
+      common: {
+        queueUrl: process.env.AWS_SQS_QUEUE_URL || "",
+        maxMessages: 10,
+        visibilityTimeout: 60,
+        intervalMs: Math.floor(1000 * 5), // 18초
+        enabled: true,
+        targetLambda: "common-api-lambda",
+      },
       crypto: {
         queueUrl: process.env.AWS_SQS_CRYPTO_QUEUE_URL || "",
         maxMessages: 4,
         visibilityTimeout: 120,
+        intervalMs: Math.floor(1000 * 18), // 18초
         enabled: true,
+        targetLambda: "stock_alarm_lambda",
       },
       ox: {
         queueUrl: process.env.AWS_SQS_OX_QUEUE_URL || "",
         maxMessages: 9,
         visibilityTimeout: 120,
+        intervalMs: Math.floor(1000 * 5), // 5초
         enabled: true,
+        targetLambda: "ox-universe-lambda",
       },
     },
   },

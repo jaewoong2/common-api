@@ -1,24 +1,25 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, Logger, Inject } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
   InvocationType,
   LambdaClient,
   InvokeCommand,
-} from '@aws-sdk/client-lambda';
+} from "@aws-sdk/client-lambda";
 import {
   SchedulerClient,
   CreateScheduleCommand,
-} from '@aws-sdk/client-scheduler';
-import { UnifiedJobMessageDto } from '../dto/unified-job-message.dto';
-import { ExecutionType } from '@common/enums';
-import axios from 'axios';
-import { SignatureV4 } from '@aws-sdk/signature-v4';
-import { Sha256 } from '@aws-crypto/sha256-js';
-import { HttpRequest } from '@smithy/protocol-http';
+} from "@aws-sdk/client-scheduler";
+import { UnifiedJobMessageDto } from "../dto/unified-job-message.dto";
+import { ExecutionType } from "@common/enums";
+import axios from "axios";
+import { SignatureV4 } from "@aws-sdk/signature-v4";
+import { Sha256 } from "@aws-crypto/sha256-js";
+import { HttpRequest } from "@smithy/protocol-http";
+import { defaultProvider } from "@aws-sdk/credential-provider-node";
 import {
   AWS_LAMBDA_CLIENT,
   AWS_SCHEDULER_CLIENT,
-} from '../../../infra/aws/aws-clients.module';
+} from "../../../infra/aws/aws-clients.module";
 
 /**
  * Message Processor Service
@@ -35,7 +36,7 @@ export class MessageProcessorService {
     private readonly lambdaClient: LambdaClient,
     @Inject(AWS_SCHEDULER_CLIENT)
     private readonly schedulerClient: SchedulerClient,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService
   ) {}
 
   /**
@@ -47,7 +48,7 @@ export class MessageProcessorService {
     const { execution } = message;
 
     this.logger.log(
-      `Processing message: jobId=${message.metadata.jobId}, type=${execution.type}`,
+      `Processing message: jobId=${message.metadata.jobId}, type=${execution.type}`
     );
 
     switch (execution.type) {
@@ -76,13 +77,11 @@ export class MessageProcessorService {
    * Execute Lambda invoke (AWS SDK)
    * @private
    */
-  private async executeLambdaInvoke(
-    message: UnifiedJobMessageDto,
-  ): Promise<void> {
+  private async executeLambdaInvoke(message: UnifiedJobMessageDto) {
     const { execution, lambdaProxyMessage } = message;
 
     if (!execution.functionName) {
-      throw new Error('functionName is required for lambda-invoke');
+      throw new Error("functionName is required for lambda-invoke");
     }
 
     const invocationType: InvocationType =
@@ -99,32 +98,32 @@ export class MessageProcessorService {
     if (response.StatusCode !== 202 && response.StatusCode !== 200) {
       throw new Error(
         `Lambda invoke failed: StatusCode=${response.StatusCode}, ` +
-          `FunctionError=${response.FunctionError}`,
+          `FunctionError=${response.FunctionError}`
       );
     }
 
     this.logger.log(`Lambda invoked successfully: ${execution.functionName}`);
+
+    return response;
   }
 
   /**
    * Execute Lambda Function URL with SigV4
    * @private
    */
-  private async executeLambdaUrl(
-    message: UnifiedJobMessageDto,
-  ): Promise<void> {
+  private async executeLambdaUrl(message: UnifiedJobMessageDto): Promise<void> {
     const { execution, lambdaProxyMessage } = message;
 
     if (!execution.functionUrl) {
-      throw new Error('functionUrl is required for lambda-url');
+      throw new Error("functionUrl is required for lambda-url");
     }
 
     // Parse URL
     const url = new URL(execution.functionUrl);
-    const fullPath = lambdaProxyMessage.path.startsWith('/')
+    const fullPath = lambdaProxyMessage.path.startsWith("/")
       ? lambdaProxyMessage.path
       : `/${lambdaProxyMessage.path}`;
-    const body = lambdaProxyMessage.body || '';
+    const body = lambdaProxyMessage.body || "";
 
     // Create HTTP request for signing
     const request = new HttpRequest({
@@ -140,13 +139,31 @@ export class MessageProcessorService {
     });
 
     // Sign request with SigV4
+    const region =
+      this.configService.get<string>("aws.lambda.region") ||
+      process.env.AWS_REGION ||
+      "ap-northeast-2";
+
+    const accessKeyId = this.configService.get<string>("aws.accessKeyId");
+    const secretAccessKey = this.configService.get<string>(
+      "aws.secretAccessKey"
+    );
+
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error("aws.accessKeyId or aws.secretAccessKey not configured");
+    }
+
     const signer = new SignatureV4({
-      service: 'lambda',
-      region: this.configService.get<string>('aws.lambda.region') || 'ap-northeast-2',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-      },
+      service: "lambda",
+      region,
+      credentials: defaultProvider({
+        clientConfig: {
+          credentials: {
+            accessKeyId,
+            secretAccessKey,
+          },
+        },
+      }),
       sha256: Sha256,
     });
 
@@ -155,14 +172,16 @@ export class MessageProcessorService {
     // Execute HTTP request
     await axios({
       method: lambdaProxyMessage.httpMethod,
-      url: execution.functionUrl.replace(/\/$/, '') + fullPath,
+      url: execution.functionUrl.replace(/\/$/, "") + fullPath,
       data: body ? JSON.parse(body) : undefined,
       headers: signedRequest.headers as Record<string, string>,
       timeout: 30000,
       validateStatus: (status) => status >= 200 && status < 300,
     });
 
-    this.logger.log(`Lambda URL invoked successfully: ${execution.functionUrl}`);
+    this.logger.log(
+      `Lambda URL invoked successfully: ${execution.functionUrl}`
+    );
   }
 
   /**
@@ -173,13 +192,13 @@ export class MessageProcessorService {
     const { execution, lambdaProxyMessage } = message;
 
     if (!execution.baseUrl) {
-      throw new Error('baseUrl is required for rest-api');
+      throw new Error("baseUrl is required for rest-api");
     }
 
-    const fullPath = lambdaProxyMessage.path.startsWith('/')
+    const fullPath = lambdaProxyMessage.path.startsWith("/")
       ? lambdaProxyMessage.path
       : `/${lambdaProxyMessage.path}`;
-    const url = `${execution.baseUrl.replace(/\/$/, '')}${fullPath}`;
+    const url = `${execution.baseUrl.replace(/\/$/, "")}${fullPath}`;
     const body = lambdaProxyMessage.body
       ? JSON.parse(lambdaProxyMessage.body)
       : undefined;
@@ -200,27 +219,25 @@ export class MessageProcessorService {
    * Create EventBridge Schedule
    * @private
    */
-  private async executeSchedule(
-    message: UnifiedJobMessageDto,
-  ): Promise<void> {
+  private async executeSchedule(message: UnifiedJobMessageDto): Promise<void> {
     const { execution, metadata } = message;
 
     if (!execution.scheduleExpression || !execution.targetJob) {
       throw new Error(
-        'scheduleExpression and targetJob are required for schedule',
+        "scheduleExpression and targetJob are required for schedule"
       );
     }
 
     const scheduleName = `job-${metadata.jobId}-${Date.now()}`;
-    const roleArn = this.configService.get<string>('aws.scheduler.roleArn');
-    const targetUrl = this.configService.get<string>('aws.scheduler.targetUrl');
+    const roleArn = this.configService.get<string>("aws.scheduler.roleArn");
+    const targetUrl = this.configService.get<string>("aws.scheduler.targetUrl");
 
     if (!roleArn) {
-      throw new Error('aws.scheduler.roleArn not configured');
+      throw new Error("aws.scheduler.roleArn not configured");
     }
 
     if (!targetUrl) {
-      throw new Error('aws.scheduler.targetUrl not configured');
+      throw new Error("aws.scheduler.targetUrl not configured");
     }
 
     // Create schedule
@@ -233,14 +250,14 @@ export class MessageProcessorService {
         Input: JSON.stringify(execution.targetJob),
       },
       FlexibleTimeWindow: {
-        Mode: 'OFF',
+        Mode: "OFF",
       },
       Description: `Scheduled job: ${metadata.jobId}`,
     });
 
     const response = await this.schedulerClient.send(command);
     this.logger.log(
-      `Schedule created: ${scheduleName}, ARN: ${response.ScheduleArn}`,
+      `Schedule created: ${scheduleName}, ARN: ${response.ScheduleArn}`
     );
   }
 }
