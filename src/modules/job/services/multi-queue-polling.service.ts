@@ -108,7 +108,16 @@ export class MultiQueuePollingService {
           // 4. Parse and validate message
           const sourceMessage = await this.parseAndValidateMessage(sqsMessage);
 
-          sourceMessage.functionName = queueConfig.targetLambda;
+          if (
+            !sourceMessage.functionName &&
+            !sourceMessage.execution?.functionName
+          ) {
+            sourceMessage.functionName = queueConfig.targetLambda;
+            sourceMessage.execution = {
+              ...sourceMessage.execution,
+              functionName: queueConfig.targetLambda,
+            };
+          }
 
           // 5. Transform to unified format
           const unifiedMessage = this.transformMessage(
