@@ -55,7 +55,7 @@ curl -H "JWT_AUTH: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
 | Method | Endpoint       | Controller     | Handler | Auth      | Description              |
 | ------ | -------------- | -------------- | ------- | --------- | ------------------------ |
 | GET    | /v1/users      | UserController | findAll | APP_ADMIN | List all users           |
-| GET    | /v1/users/:id  | UserController | findOne | APP_ADMIN | Get user by ID           |
+| GET    | /v1/users/:id  | UserController | findOne | APP_ADMIN, USER | Get user by ID      |
 | POST   | /v1/users      | UserController | create  | APP_ADMIN | Create new user          |
 | PATCH  | /v1/users/:id  | UserController | update  | APP_ADMIN | Update user              |
 | DELETE | /v1/users/:id  | UserController | remove  | APP_ADMIN | Delete user (soft delete)|
@@ -64,20 +64,20 @@ curl -H "JWT_AUTH: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
 
 | Method | Endpoint            | Controller        | Handler    | Auth   | Description                          |
 | ------ | ------------------- | ----------------- | ---------- | ------ | ------------------------------------ |
-| POST   | /v1/wallet/credit   | WalletController  | credit     | Public | Credit wallet (add points)           |
-| POST   | /v1/wallet/debit    | WalletController  | debit      | Public | Debit wallet (deduct points)         |
-| GET    | /v1/wallet/balance  | WalletController  | getBalance | Public | Get wallet balance                   |
-| GET    | /v1/wallet/ledger   | WalletController  | getLedger  | Public | Get wallet transaction ledger        |
+| POST   | /v1/wallet/credits  | WalletController  | credit     | APP_ADMIN | Credit wallet (add points)        |
+| POST   | /v1/wallet/debits   | WalletController  | debit      | APP_ADMIN | Debit wallet (deduct points)      |
+| GET    | /v1/wallet/balance  | WalletController  | getBalance | APP_ADMIN | Get wallet balance                |
+| GET    | /v1/wallet/ledger   | WalletController  | getLedger  | APP_ADMIN | Get wallet transaction ledger     |
 
 ## Billing Module
 
 | Method | Endpoint                      | Controller        | Handler       | Auth           | Description              |
 | ------ | ----------------------------- | ----------------- | ------------- | -------------- | ------------------------ |
-| GET    | /v1/products                  | ProductController | listProducts  | RolesGuard     | List active products     |
+| GET    | /v1/products                  | ProductController | listProducts  | JWT            | List active products     |
 | POST   | /v1/admin/products            | ProductController | createProduct | APP_ADMIN      | Create product           |
 | PATCH  | /v1/admin/products/:productId | ProductController | updateProduct | APP_ADMIN      | Update product           |
-| POST   | /v1/orders                    | OrderController   | createOrder   | Public         | Create order             |
-| POST   | /v1/orders/:orderId/refund    | OrderController   | refundOrder   | Public         | Refund order             |
+| POST   | /v1/orders                    | OrderController   | createOrder   | JWT            | Create order             |
+| POST   | /v1/orders/:orderId/refund    | OrderController   | refundOrder   | JWT            | Refund order             |
 
 ## Job Module
 
@@ -85,17 +85,18 @@ curl -H "JWT_AUTH: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
 
 | Method | Endpoint                  | Controller  | Handler        | Auth   | Description                         |
 | ------ | ------------------------- | ----------- | -------------- | ------ | ----------------------------------- |
-| POST   | /v1/jobs/callback-http    | JobController | createCallbackJob | Public | [Legacy] Create callback HTTP job   |
-| POST   | /internal/v1/jobs/run     | JobController | runDueJobs     | Internal | [Legacy] Run due jobs (scheduler)   |
+| POST   | /v1/jobs/callback-http    | JobController | createCallbackJob | JWT | [Legacy] Create callback HTTP job   |
+| POST   | /internal/v1/jobs/run     | JobController | runDueJobs     | JWT (Internal) | [Legacy] Run due jobs (scheduler) |
 
 ### Unified Job System Endpoints
 
 | Method | Endpoint                              | Controller  | Handler                   | Auth     | Description                                          |
 | ------ | ------------------------------------- | ----------- | ------------------------- | -------- | ---------------------------------------------------- |
-| POST   | /v1/jobs/create                       | JobController | createUnifiedJob        | Public   | Create unified job (mode: db\|sqs\|both)             |
-| POST   | /internal/v1/poll-sqs                 | JobController | pollSqs                 | Internal | Poll SQS and process messages (EventBridge cron: 1m) |
-| POST   | /internal/v1/run-db-jobs              | JobController | runDbJobs               | Internal | Run due DB jobs (EventBridge cron: 5m)               |
-| POST   | /internal/v1/process-scheduled-message| JobController | processScheduledMessage | Internal | Process scheduled message (EventBridge Scheduler)    |
+| POST   | /v1/jobs/create                       | JobController | createUnifiedJob        | JWT        | Create unified job (mode: db\|sqs\|both)          |
+| POST   | /internal/v1/poll-sqs                 | JobController | pollSqs                 | JWT (Internal) | Poll SQS and process messages (EventBridge cron: 1m) |
+| POST   | /internal/v1/run-db-jobs              | JobController | runDbJobs               | JWT (Internal) | Run due DB jobs (EventBridge cron: 5m)            |
+| POST   | /internal/v1/process-scheduled-message| JobController | processScheduledMessage | JWT (Internal) | Process scheduled message (EventBridge Scheduler) |
+| POST   | /internal/v1/poll-source-queue        | JobController | pollSourceQueue         | JWT (Internal) | Poll source FIFO queues and forward to main queue |
 
 ## Admin Module
 

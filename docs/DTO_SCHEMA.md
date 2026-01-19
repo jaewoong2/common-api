@@ -14,14 +14,14 @@
 | `CreateUserDto`         | src/modules/user/dto/create-user.dto.ts    | Create new user                               | email, profile, role optional |
 | `UpdateUserDto`         | src/modules/user/dto/update-user.dto.ts    | Update user                                   | profile, status, role optional |
 | `UserResponseDto`       | src/modules/user/dto/user-response.dto.ts  | User response DTO                             | with fromEntity transformation |
-| `CreditWalletDto`       | src/modules/wallet/dto/wallet.dto.ts       | Wallet credit request                         | requires idempotency header |
-| `DebitWalletDto`        | src/modules/wallet/dto/wallet.dto.ts       | Wallet debit request                          | requires idempotency header |
+| `CreditWalletDto`       | src/modules/wallet/dto/wallet.dto.ts       | Wallet credit request                         | idempotency_key is in body (optional) |
+| `DebitWalletDto`        | src/modules/wallet/dto/wallet.dto.ts       | Wallet debit request                          | idempotency_key is in body (optional) |
 | `WalletBalanceQueryDto` | src/modules/wallet/dto/wallet.dto.ts       | Balance query params                          | user_id |
-| `WalletLedgerQueryDto`  | src/modules/wallet/dto/wallet.dto.ts       | Ledger query params                           | pagination cursor/limit |
-| `CreateProductDto`      | src/modules/billing/dto/product.dto.ts     | Admin create product                          | type/name/metadata |
-| `UpdateProductDto`      | src/modules/billing/dto/product.dto.ts     | Admin update product                          | name/active/metadata |
-| `CreateOrderDto`        | src/modules/billing/dto/order.dto.ts       | Create order with wallet payment              | includes reason/ref fields |
-| `RefundOrderDto`        | src/modules/billing/dto/order.dto.ts       | Refund order request                          | idempotency key optional |
+| `WalletLedgerQueryDto`  | src/modules/wallet/dto/wallet.dto.ts       | Ledger query params                           | limit used; cursor currently ignored |
+| `CreateProductDto`      | src/modules/billing/dto/product.dto.ts     | Admin create product                          | type/name/default_price/metadata/is_active |
+| `UpdateProductDto`      | src/modules/billing/dto/product.dto.ts     | Admin update product                          | name/is_active/metadata (is_active not applied yet) |
+| `CreateOrderDto`        | src/modules/billing/dto/order.dto.ts       | Create order with wallet payment              | price_id maps to ProductEntity.id; reason unused |
+| `RefundOrderDto`        | src/modules/billing/dto/order.dto.ts       | Refund order request                          | reason unused; idempotency_key optional |
 | `CreateCallbackJobDto`  | src/modules/job/dto/job.dto.ts             | [Legacy] Create callback HTTP job             | method/path/body/timeout |
 | `RunJobsDto`            | src/modules/job/dto/job.dto.ts             | [Legacy] Internal job runner payload          | limit optional |
 | `LambdaProxyMessageDto` | src/modules/job/dto/unified-job-message.dto.ts | AWS Lambda proxy event structure          | body/path/httpMethod/headers/requestContext |
@@ -31,8 +31,8 @@
 | `CreateUnifiedJobDto`   | src/modules/job/dto/create-job.dto.ts      | Create unified job request                    | appId/message/mode(db\|sqs\|both) |
 | `JobCreationMode`       | src/modules/job/dto/create-job.dto.ts      | Job creation mode enum                        | DB/SQS/BOTH |
 | `SuspendReasonDto`      | src/modules/admin/dto/admin.dto.ts         | Admin suspend reason                          | reason |
-| `AdjustWalletDto`       | src/modules/admin/dto/admin.dto.ts         | Admin wallet adjust payload                   | delta with refs |
+| `AdjustWalletDto`       | src/modules/admin/dto/admin.dto.ts         | Admin wallet adjust payload                   | ref_id used as idempotency key internally |
 | `RetryJobDto`           | src/modules/admin/dto/admin.dto.ts         | Admin job id payload                          | jobId |
-| `ListJobsQueryDto`      | src/modules/admin/dto/admin.dto.ts         | Admin job listing filters                     | status/limit/cursor |
+| `ListJobsQueryDto`      | src/modules/admin/dto/admin.dto.ts         | Admin job listing filters                     | status/limit used; cursor ignored |
 | `CreateAppDto`          | src/modules/platform/dto/app.dto.ts        | Platform create app/tenant                    | hosts/callback settings |
 | `UpdateAppDto`          | src/modules/platform/dto/app.dto.ts        | Platform update app config                    | callback updates |
