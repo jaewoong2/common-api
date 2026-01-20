@@ -4,6 +4,13 @@ trigger: always_on
 
 # NestJS Development Rules
 
+
+##### ! Important #####
+You Must To Do.
+1. Before Implement, Ask user Question Many times (not edit)
+2. Before Implement, Planinng Make a plan Must To do, Update Todos
+3. Before Implement, Search Web, MCP For Latest Documents and refrences for todos. 
+
 ## 🎯 Core Principles
 **MUST: Seek better solutions** - Implement best practices when better approaches exist.
 **MUST: Write reusable code** - Design for easy refactoring, avoid "duct tape" solutions.
@@ -13,19 +20,6 @@ trigger: always_on
 
 ### NEVER Use `any`
 **FORBIDDEN**: `any` defeats type safety, causes runtime errors.
-
-❌ **WRONG**:
-```typescript
-function process(data: any): any {  // ❌ FORBIDDEN
-  return data;
-}
-
-class UserDto {
-  static fromEntity(entity: any): UserDto {  // ❌ FORBIDDEN
-    return new UserDto();
-  }
-}
-```
 
 ✅ **CORRECT - Use Specific Types**:
 ```typescript
