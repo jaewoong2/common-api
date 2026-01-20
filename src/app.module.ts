@@ -21,6 +21,10 @@ import { PlatformModule } from "./modules/platform/platform.module";
 import { HealthModule } from "./modules/health/health.module";
 import { RolesGuard } from "./common/guards/roles.guard";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
+// Webhook modules
+import { ExchangeKeysModule } from "./modules/exchange-keys";
+import { WebhookModule } from "./modules/webhook";
+import { TradeLogsModule } from "./modules/trade-logs";
 
 @Module({
   imports: [
@@ -43,6 +47,10 @@ import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
     JobModule,
     AdminModule,
     PlatformModule,
+    // Webhook trading modules
+    ExchangeKeysModule,
+    WebhookModule,
+    TradeLogsModule,
   ],
   providers: [
     {
@@ -64,7 +72,10 @@ export class AppModule implements NestModule {
         "/v1/auth/oauth/google/start",
         "/v1/auth/oauth/google/callback",
         "/v1/auth/oauth/kakao/start",
-        "/v1/auth/oauth/kakao/callback"
+        "/v1/auth/oauth/kakao/callback",
+        // Webhook endpoints - no tenant middleware
+        "/webhook/:provider/:auth_token",
+        "/webhook/execute",
       )
       .forRoutes("*");
   }

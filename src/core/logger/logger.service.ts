@@ -1,4 +1,6 @@
-import { ConsoleLogger, Injectable } from '@nestjs/common';
+import { ConsoleLogger, Injectable } from "@nestjs/common";
+import * as winston from "winston";
+import DailyRotateFile from "winston-daily-rotate-file";
 
 /**
  * Minimal logger that prefixes messages with request id when present.
@@ -8,8 +10,8 @@ export class AppLogger extends ConsoleLogger {
   private requestId?: string;
   private winstonLogger: winston.Logger;
 
-  constructor() {
-    super();
+  constructor(context?: string) {
+    super(context);
     this.winstonLogger = this.createWinstonLogger();
   }
 
@@ -17,26 +19,32 @@ export class AppLogger extends ConsoleLogger {
    * Creates Winston logger instance with production-grade configuration
    */
   private createWinstonLogger(): winston.Logger {
-    const isProduction = process.env.NODE_ENV === 'production';
-    const logLevel = process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug');
+    const isProduction = process.env.NODE_ENV === "production";
+    const logLevel = process.env.LOG_LEVEL || (isProduction ? "info" : "debug");
 
     // Custom format for structured logging
     const structuredFormat = winston.format.combine(
-      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+      winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss.SSS" }),
       winston.format.errors({ stack: true }),
-      winston.format.metadata({ fillExcept: ['timestamp', 'level', 'message'] }),
+      winston.format.metadata({
+        fillExcept: ["timestamp", "level", "message"],
+      }),
       winston.format.json(),
     );
 
     // Human-readable format for development
     const consoleFormat = winston.format.combine(
-      winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+      winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss.SSS" }),
       winston.format.colorize(),
-      winston.format.printf(({ timestamp, level, message, requestId, ...meta }) => {
-        const reqId = requestId ? `[req:${requestId}]` : '';
-        const metaStr = Object.keys(meta).length ? `\n${JSON.stringify(meta, null, 2)}` : '';
-        return `${timestamp} ${level} ${reqId} ${message}${metaStr}`;
-      }),
+      winston.format.printf(
+        ({ timestamp, level, message, requestId, ...meta }) => {
+          const reqId = requestId ? `[req:${requestId}]` : "";
+          const metaStr = Object.keys(meta).length
+            ? `\n${JSON.stringify(meta, null, 2)}`
+            : "";
+          return `${timestamp} ${level} ${reqId} ${message}${metaStr}`;
+        },
+      ),
     );
 
     const transports: winston.transport[] = [];
@@ -54,10 +62,10 @@ export class AppLogger extends ConsoleLogger {
       // Combined log (all levels)
       transports.push(
         new DailyRotateFile({
-          filename: 'logs/combined-%DATE%.log',
-          datePattern: 'YYYY-MM-DD',
-          maxSize: '20m',
-          maxFiles: '14d',
+          filename: "logs/combined-%DATE%.log",
+          datePattern: "YYYY-MM-DD",
+          maxSize: "20m",
+          maxFiles: "14d",
           format: structuredFormat,
           level: logLevel,
         }),
@@ -66,24 +74,24 @@ export class AppLogger extends ConsoleLogger {
       // Error log (error level only)
       transports.push(
         new DailyRotateFile({
-          filename: 'logs/error-%DATE%.log',
-          datePattern: 'YYYY-MM-DD',
-          maxSize: '20m',
-          maxFiles: '30d',
+          filename: "logs/error-%DATE%.log",
+          datePattern: "YYYY-MM-DD",
+          maxSize: "20m",
+          maxFiles: "30d",
           format: structuredFormat,
-          level: 'error',
+          level: "error",
         }),
       );
 
       // HTTP log (dedicated for request/response tracking)
       transports.push(
         new DailyRotateFile({
-          filename: 'logs/http-%DATE%.log',
-          datePattern: 'YYYY-MM-DD',
-          maxSize: '50m',
-          maxFiles: '7d',
+          filename: "logs/http-%DATE%.log",
+          datePattern: "YYYY-MM-DD",
+          maxSize: "50m",
+          maxFiles: "7d",
           format: structuredFormat,
-          level: 'http',
+          level: "http",
         }),
       );
     }
@@ -119,7 +127,9 @@ export class AppLogger extends ConsoleLogger {
   /**
    * Creates metadata object with request ID
    */
-  private createMetadata(meta?: Record<string, unknown>): Record<string, unknown> {
+  private createMetadata(
+    meta?: Record<string, unknown>,
+  ): Record<string, unknown> {
     const metadata: Record<string, unknown> = {
       ...(meta || {}),
     };
@@ -135,7 +145,7 @@ export class AppLogger extends ConsoleLogger {
    * Logs an info message with structured metadata
    */
   override log(message: unknown, context?: string) {
-    const msg = typeof message === 'string' ? message : JSON.stringify(message);
+    const msg = typeof message === "string" ? message : JSON.stringify(message);
     this.winstonLogger.info(msg, this.createMetadata({ context }));
     super.log(this.formatWithRequestId(message), context);
   }
@@ -144,7 +154,7 @@ export class AppLogger extends ConsoleLogger {
    * Logs a warning with structured metadata
    */
   override warn(message: unknown, context?: string) {
-    const msg = typeof message === 'string' ? message : JSON.stringify(message);
+    const msg = typeof message === "string" ? message : JSON.stringify(message);
     this.winstonLogger.warn(msg, this.createMetadata({ context }));
     super.warn(this.formatWithRequestId(message), context);
   }
@@ -153,7 +163,7 @@ export class AppLogger extends ConsoleLogger {
    * Logs an error with structured metadata and stack trace
    */
   override error(message: unknown, trace?: string, context?: string) {
-    const msg = typeof message === 'string' ? message : JSON.stringify(message);
+    const msg = typeof message === "string" ? message : JSON.stringify(message);
     this.winstonLogger.error(msg, this.createMetadata({ trace, context }));
     super.error(this.formatWithRequestId(message), trace, context);
   }
@@ -162,7 +172,7 @@ export class AppLogger extends ConsoleLogger {
    * Logs debug information (development only)
    */
   override debug(message: unknown, context?: string) {
-    const msg = typeof message === 'string' ? message : JSON.stringify(message);
+    const msg = typeof message === "string" ? message : JSON.stringify(message);
     this.winstonLogger.debug(msg, this.createMetadata({ context }));
     super.debug(this.formatWithRequestId(message), context);
   }
@@ -171,7 +181,7 @@ export class AppLogger extends ConsoleLogger {
    * Logs verbose information (detailed tracing)
    */
   override verbose(message: unknown, context?: string) {
-    const msg = typeof message === 'string' ? message : JSON.stringify(message);
+    const msg = typeof message === "string" ? message : JSON.stringify(message);
     this.winstonLogger.verbose(msg, this.createMetadata({ context }));
     super.verbose(this.formatWithRequestId(message), context);
   }
@@ -180,7 +190,7 @@ export class AppLogger extends ConsoleLogger {
    * Logs HTTP request/response flow (production tracking)
    */
   http(message: string, meta?: Record<string, unknown>) {
-    this.winstonLogger.log('http', message, this.createMetadata(meta));
+    this.winstonLogger.log("http", message, this.createMetadata(meta));
   }
 
   /**
@@ -195,8 +205,8 @@ export class AppLogger extends ConsoleLogger {
     body?: Record<string, unknown>;
     headers?: Record<string, unknown>;
   }) {
-    this.http('REQUEST_START', {
-      event: 'request_start',
+    this.http("REQUEST_START", {
+      event: "request_start",
       ...data,
     });
   }
@@ -212,8 +222,8 @@ export class AppLogger extends ConsoleLogger {
     responseSize?: number;
     responseData?: unknown;
   }) {
-    this.http('REQUEST_END', {
-      event: 'request_end',
+    this.http("REQUEST_END", {
+      event: "request_end",
       ...data,
     });
   }
@@ -230,15 +240,20 @@ export class AppLogger extends ConsoleLogger {
     errorMessage: string;
     stack?: string;
   }) {
-    this.winstonLogger.error('REQUEST_ERROR', this.createMetadata({
-      event: 'request_error',
-      ...data,
-    }));
+    this.winstonLogger.error(
+      "REQUEST_ERROR",
+      this.createMetadata({
+        event: "request_error",
+        ...data,
+      }),
+    );
   }
 
   private formatWithRequestId(message: unknown): string {
     const normalized =
-      typeof message === 'string' ? message : JSON.stringify(message);
-    return this.requestId ? `[req:${this.requestId}] ${normalized}` : normalized;
+      typeof message === "string" ? message : JSON.stringify(message);
+    return this.requestId
+      ? `[req:${this.requestId}] ${normalized}`
+      : normalized;
   }
 }

@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { UserEntity } from '../../../database/entities/user.entity';
-import { UserStatus, UserRole } from '../../../common/enums';
-import { UserResponseDto } from '../dto/user-response.dto';
-import { JsonObject } from '@common/types/json-value.type';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { UserEntity } from "../../../database/entities/user.entity";
+import { UserStatus, UserRole } from "../../../common/enums";
+import { UserResponseDto } from "../dto/user-response.dto";
+import { JsonObject } from "@common/types/json-value.type";
 
 /**
  * User Repository
@@ -52,6 +52,17 @@ export class UserRepository {
   }
 
   /**
+   * Find user by auth token (for webhook authentication)
+   * @param authToken UUID auth token
+   * @returns UserEntity or null
+   */
+  async findByAuthToken(authToken: string): Promise<UserEntity | null> {
+    return this.repo.findOne({
+      where: { authToken },
+    });
+  }
+
+  /**
    * Find all users in an app with DTO transformation
    * @param appId App UUID
    * @returns Array of UserResponseDto
@@ -59,7 +70,7 @@ export class UserRepository {
   async findAllByApp(appId: string): Promise<UserResponseDto[]> {
     const entities = await this.repo.find({
       where: { appId },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
     return entities.map((entity) => UserResponseDto.fromEntity(entity));
   }
@@ -98,7 +109,7 @@ export class UserRepository {
     await this.repo.update(userId, data);
     const updated = await this.findById(userId);
     if (!updated) {
-      throw new Error('User not found after update');
+      throw new Error("User not found after update");
     }
     return UserResponseDto.fromEntity(updated);
   }

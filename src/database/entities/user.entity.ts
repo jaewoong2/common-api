@@ -5,47 +5,48 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
-} from 'typeorm';
-import { BaseEntity } from '../../core/database/base.entity';
-import { UserStatus, UserRole } from '../../common/enums';
-import { JsonObject } from '@common/types/json-value.type';
-import { AppEntity } from './app.entity';
-import { RefreshTokenEntity } from './refresh-token.entity';
-import { WalletLotEntity } from './wallet-lot.entity';
-import { WalletLedgerEntity } from './wallet-ledger.entity';
-import { OrderEntity } from './order.entity';
+} from "typeorm";
+import { BaseEntity } from "../../core/database/base.entity";
+import { UserStatus, UserRole } from "../../common/enums";
+import { JsonObject } from "@common/types/json-value.type";
+import { AppEntity } from "./app.entity";
+import { RefreshTokenEntity } from "./refresh-token.entity";
+import { WalletLotEntity } from "./wallet-lot.entity";
+import { WalletLedgerEntity } from "./wallet-ledger.entity";
+import { OrderEntity } from "./order.entity";
 
 /**
  * User Entity
  * @description Represents a user account in the multi-tenant system
  * @note NO password field - Only OAuth and Magic Link authentication
  */
-@Entity({ name: 'users', schema: 'common' })
-@Index(['appId', 'email'], { unique: true }) // Unique email per app
-@Index(['status'])
-@Index(['role'])
+@Entity({ name: "users", schema: "common" })
+@Index(["appId", "email"], { unique: true }) // Unique email per app
+@Index(["status"])
+@Index(["role"])
+@Index(["authToken"])
 export class UserEntity extends BaseEntity {
   /**
    * App (tenant) this user belongs to
    */
-  @Column({ name: 'app_id', type: 'uuid' })
+  @Column({ name: "app_id", type: "uuid" })
   appId: string;
 
   @ManyToOne(() => AppEntity)
-  @JoinColumn({ name: 'app_id' })
+  @JoinColumn({ name: "app_id" })
   app: AppEntity;
 
   /**
    * User's email address (unique per app)
    */
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: "varchar", length: 255 })
   email: string;
 
   /**
    * User account status
    */
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: UserStatus,
     default: UserStatus.ACTIVE,
   })
@@ -54,18 +55,30 @@ export class UserEntity extends BaseEntity {
   /**
    * User profile data (JSON: nickname, avatar, preferences, etc.)
    */
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   profile: JsonObject | null;
 
   /**
    * User role for RBAC
    */
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: UserRole,
     default: UserRole.USER,
   })
   role: UserRole;
+
+  /**
+   * Authentication token for webhook URL
+   * @description Used in webhook endpoint: /webhook/:provider/:auth_token
+   */
+  @Column({
+    name: "auth_token",
+    type: "uuid",
+    default: () => "gen_random_uuid()",
+    unique: true,
+  })
+  authToken: string;
 
   // Relations
   @OneToMany(() => RefreshTokenEntity, (token) => token.user)

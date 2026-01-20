@@ -6,12 +6,12 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.deploy.yml}"
 
 AWS_REGION="${AWS_REGION:-ap-northeast-2}"
 AWS_PROFILE="${AWS_PROFILE:-lime_admin}"
-ECR_REPOSITORY="${ECR_REPOSITORY:-849441246713.dkr.ecr.ap-northeast-2.amazonaws.com/common-api}"
-LAMBDA_FUNCTION_NAME="${LAMBDA_FUNCTION_NAME:-common-api-lambda}"
+ECR_REPOSITORY="${ECR_REPOSITORY:-849441246713.dkr.ecr.ap-northeast-2.amazonaws.com/binance-api}"
+LAMBDA_FUNCTION_NAME="${LAMBDA_FUNCTION_NAME:-binance-api-lambda}"
 IMAGE_TAG="${IMAGE_TAG:-lambda}"
 
 if [[ -z "$ECR_REPOSITORY" || -z "$LAMBDA_FUNCTION_NAME" ]]; then
-  echo "Usage: ECR_REPOSITORY=849441246713.dkr.ecr.ap-northeast-2.amazonaws.com/common-api \\"
+  echo "Usage: ECR_REPOSITORY=849441246713.dkr.ecr.ap-northeast-2.amazonaws.com/binance-api \\"
   echo "       LAMBDA_FUNCTION_NAME=<lambda-name> [IMAGE_TAG=lambda] [AWS_REGION=ap-northeast-2] [AWS_PROFILE=default] $0"
   exit 1
 fi

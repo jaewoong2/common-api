@@ -1,5 +1,5 @@
-import awsConfig from './aws.config';
-import loggerConfig from './logger.config';
+import awsConfig from "./aws.config";
+import loggerConfig from "./logger.config";
 
 export default () => ({
   env: process.env.NODE_ENV || "local",
@@ -35,6 +35,18 @@ export default () => ({
         process.env.KAKAO_REDIRECT_URI ||
         "http://localhost:8000/v1/auth/oauth/kakao/callback",
     },
+  },
+  webhook: {
+    sqsQueueUrl: process.env.WEBHOOK_SQS_QUEUE_URL || "",
+    targetLambdaName:
+      process.env.WEBHOOK_TARGET_LAMBDA_NAME || "common-api-nestjs",
+    defaultAppId:
+      process.env.DEFAULT_WEBHOOK_APP_ID ||
+      "eb3fcbb2-7bb3-4ac7-aa38-1cb4bf00e405",
+    lockTtlSeconds: Number(process.env.WEBHOOK_LOCK_TTL_SECONDS) || 180,
+  },
+  kms: {
+    keyId: process.env.AWS_KMS_KEY_ID || "",
   },
   aws: awsConfig(),
   logger: loggerConfig(),
