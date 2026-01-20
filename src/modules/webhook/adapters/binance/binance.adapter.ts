@@ -23,25 +23,39 @@ export class BinanceAdapter implements ProviderAdapter {
 
   /**
    * Validate Binance-specific payload
+   * @note DTO에서 기본 검증이 이미 수행됨. 여기서는 Binance 고유 규칙만 검증.
    */
   async validatePayload(payload: BasePayload): Promise<void> {
-    if (!payload.ticker || !payload.action || !payload.qty) {
+    // Binance-specific: 티커 형식 검증 (USDT 페어만 지원)
+    if (!/^[A-Z]{2,10}USDT$/.test(payload.ticker)) {
       throw new BadRequestException(
-        "Missing required fields: ticker, action, qty",
+        `Invalid ticker format for Binance Futures: ${payload.ticker}. Must be a USDT pair (e.g., BTCUSDT)`,
       );
     }
 
-    const validActions = Object.values(WebhookAction);
-    if (!validActions.includes(payload.action as WebhookAction)) {
-      throw new BadRequestException(`Invalid action: ${payload.action}`);
+    // Binance-specific: leverage 범위 검증 (1-125)
+    if (
+      payload.options.leverage !== undefined &&
+      (payload.options.leverage < 1 || payload.options.leverage > 125)
+    ) {
+      throw new BadRequestException(
+        `Leverage must be between 1 and 125 for Binance Futures. Got: ${payload.options.leverage}`,
+      );
+    }
+
+    // Binance-specific: stop_loss/take_profit percent 검증
+    if (payload.strategy?.stop_loss && payload.strategy.stop_loss.value > 50) {
+      throw new BadRequestException(
+        `Stop loss percent too high: ${payload.strategy.stop_loss.value}%. Max is 50%`,
+      );
     }
 
     if (
-      payload.qty.type === "percent" &&
-      (payload.qty.value < 1 || payload.qty.value > 100)
+      payload.strategy?.take_profit &&
+      payload.strategy.take_profit.value > 500
     ) {
       throw new BadRequestException(
-        "qty.value must be between 1 and 100 for percent type",
+        `Take profit percent too high: ${payload.strategy.take_profit.value}%. Max is 500%`,
       );
     }
   }

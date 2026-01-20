@@ -33,14 +33,44 @@ export class WebhookReceiverService {
     private readonly jobService: JobService,
     private readonly configService: ConfigService,
   ) {
+    // Config 로드 및 검증
     this.DEFAULT_WEBHOOK_APP_ID =
       this.configService.get<string>("webhook.defaultAppId") ||
       "eb3fcbb2-7bb3-4ac7-aa38-1cb4bf00e405";
+
     this.webhookSqsQueueUrl =
       this.configService.get<string>("webhook.sqsQueueUrl") || "";
+
     this.targetLambdaName =
       this.configService.get<string>("webhook.targetLambdaName") ||
       "common-api-nestjs";
+
+    // 필수 설정 검증
+    this.validateConfig();
+  }
+
+  /**
+   * 필수 Config 검증
+   * @throws Error if required config is missing
+   */
+  private validateConfig(): void {
+    const missingConfigs: string[] = [];
+
+    if (!this.webhookSqsQueueUrl) {
+      missingConfigs.push("WEBHOOK_SQS_QUEUE_URL (webhook.sqsQueueUrl)");
+    }
+
+    if (!this.targetLambdaName) {
+      missingConfigs.push(
+        "WEBHOOK_TARGET_LAMBDA_NAME (webhook.targetLambdaName)",
+      );
+    }
+
+    if (missingConfigs.length > 0) {
+      this.logger.warn(
+        `Missing recommended webhook config: ${missingConfigs.join(", ")}. Using defaults where available.`,
+      );
+    }
   }
 
   /**

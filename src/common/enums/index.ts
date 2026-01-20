@@ -17,3 +17,4 @@ export { WebhookStatus } from "./webhook-status.enum";
 export { TradeStatus } from "./trade-status.enum";
 export { WebhookAction } from "./webhook-action.enum";
 export { MarketType } from "./market-type.enum";
+export { BinanceErrorCode, getBinanceErrorMessage } from "./binance-error.enum";

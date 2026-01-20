@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, EntityManager, MoreThan, LessThan } from "typeorm";
+import { Repository, EntityManager, LessThan } from "typeorm";
 import { ProcessingLockEntity } from "../../../database/entities";
 import { randomUUID } from "crypto";
 
@@ -11,12 +12,19 @@ import { randomUUID } from "crypto";
 @Injectable()
 export class ProcessingLockRepository {
   private readonly logger = new Logger(ProcessingLockRepository.name);
-  private readonly TTL_SECONDS = 180; // 3분
+  private readonly lockTtlSeconds: number;
 
   constructor(
     @InjectRepository(ProcessingLockEntity)
     private readonly repository: Repository<ProcessingLockEntity>,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    // TTL 기본값 180초 (3분), 설정으로 오버라이드 가능
+    this.lockTtlSeconds = this.configService.get<number>(
+      "webhook.lockTtlSeconds",
+      180,
+    );
+  }
 
   /**
    * Lock 획득 시도
@@ -30,7 +38,7 @@ export class ProcessingLockRepository {
     const repo =
       manager?.getRepository(ProcessingLockEntity) ?? this.repository;
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + this.TTL_SECONDS * 1000);
+    const expiresAt = new Date(now.getTime() + this.lockTtlSeconds * 1000);
     const lockToken = randomUUID();
 
     try {
