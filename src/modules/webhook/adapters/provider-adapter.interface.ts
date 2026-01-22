@@ -1,4 +1,13 @@
-import { InvocationType } from "@aws-sdk/client-lambda";
+import {
+  OrderType,
+  QtyType,
+  PositionMode,
+  QuoteAsset,
+  OrderSide,
+  TpSlType,
+  TradePosition,
+  TradeBalance,
+} from "../../../common/types";
 
 /**
  * Exchange Credentials Interface
@@ -43,13 +52,15 @@ export interface ProviderRequest {
   userId: string;
   signalId: string;
   symbol: string;
-  side: "BUY" | "SELL";
+  side: OrderSide;
+  orderType: OrderType; // market 또는 limit
   quantity: string;
+  price?: string; // limit 주문 시 필수
   leverage?: number;
   stopLoss?: number;
   takeProfit?: number;
   clientOrderId: string;
-  positionMode?: "ONE_WAY" | "HEDGE";
+  positionMode?: PositionMode;
   reduceOnly?: boolean;
 }
 
@@ -60,20 +71,25 @@ export interface ProviderRequest {
 export interface BasePayload {
   ticker: string;
   action: string;
+  entry?: {
+    type: OrderType;
+    price?: number | string;
+  };
   qty: {
-    type: "percent" | "fixed";
+    type: QtyType;
     value: number;
   };
   strategy?: {
-    stop_loss?: { type: string; value: number };
-    take_profit?: { type: string; value: number };
+    stop_loss?: { type: TpSlType; value: number; qty_percent?: number };
+    take_profit?: { type: TpSlType; value: number; qty_percent?: number };
   };
   options: {
     signal_id: string;
     leverage?: number;
-    position_mode?: "ONE_WAY" | "HEDGE";
+    position_mode?: PositionMode;
     reduce_only?: boolean;
   };
+  quote_asset?: QuoteAsset;
 }
 
 /**
@@ -98,12 +114,14 @@ export interface ProviderAdapter {
    * @param userId - 사용자 ID
    * @param signalId - 시그널 ID
    * @param payload - 원본 페이로드
+   * @param credentials - 거래소 인증 정보 (잔고 조회용)
    * @returns Provider 전용 요청 객체
    */
   transformRequest(
     userId: string,
     signalId: string,
     payload: BasePayload,
+    credentials: ExchangeCredentials,
   ): Promise<ProviderRequest>;
 
   /**
@@ -116,4 +134,22 @@ export interface ProviderAdapter {
     request: ProviderRequest,
     credentials: ExchangeCredentials,
   ): Promise<ExecutionResult>;
+
+  /**
+   * Get Current Positions
+   */
+  getPositions(
+    credentials: ExchangeCredentials,
+    symbol?: string,
+    options?: Record<string, any>,
+  ): Promise<TradePosition[]>;
+
+  /**
+   * Get Account Balances
+   */
+  getBalances(
+    credentials: ExchangeCredentials,
+    assets?: string[],
+    options?: Record<string, any>,
+  ): Promise<TradeBalance[]>;
 }

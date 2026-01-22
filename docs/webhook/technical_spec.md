@@ -543,7 +543,7 @@ interface LogEntry {
   "level": "ERROR",
   "service": "webhook-executor",
   "trace_id": "sqs_abc123",
-  "user_id": 1,
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
   "signal_id": "1737360000000",
   "job_id": "550e8400-e29b-41d4-a716-446655440000",
   "message": "Binance API error: Insufficient balance",
@@ -625,49 +625,9 @@ fields @timestamp, level, message, user_id, signal_id
 
 ---
 
-## 5. Balance/Position Caching
+## 5. Qty Percent Calculation
 
-### 5.1 캐싱 전략
-
-**목적:** `qty.percent` 계산 시 잔고 조회 성능 향상
-
-**Cache Key:**
-
-```
-balance:{user_id}:{exchange}:{market}
-```
-
-**TTL:** 30초 (암호화폐 가격 변동성 고려)
-
-**구현:**
-
-```typescript
-async function getBalance(
-  userId: number,
-  exchange: string,
-  market: string,
-): Promise<Decimal> {
-  const cacheKey = `balance:${userId}:${exchange}:${market}`;
-
-  // Cache hit
-  const cached = await redis.get(cacheKey);
-  if (cached) {
-    return new Decimal(cached);
-  }
-
-  // Cache miss → 거래소 API 호출
-  const balance = await binanceApi.getBalance(userId, market);
-
-  // Cache set (30초)
-  await redis.setex(cacheKey, 30, balance.toString());
-
-  return balance;
-}
-```
-
----
-
-### 5.2 Leverage 적용 로직 (선물)
+### 5.1 Leverage 적용 로직 (선물)
 
 ```typescript
 function calculateOrderQty(

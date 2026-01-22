@@ -35,7 +35,7 @@ export default registerAs("aws", () => ({
         visibilityTimeout: 60,
         intervalMs: Math.floor(1000 * 5), // 18초
         enabled: true,
-        targetLambda: "common-api-lambda",
+        targetLambda: "binance-api-lambda",
       },
       crypto: {
         queueUrl: process.env.AWS_SQS_CRYPTO_QUEUE_URL || "",

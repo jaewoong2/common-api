@@ -2,7 +2,7 @@ import * as Joi from "joi";
 
 const validationSchema = Joi.object({
   NODE_ENV: Joi.string()
-    .valid("local", "dev", "stage", "prod", "test")
+    .valid("local", "dev", "stage", "prod", "test", "production")
     .default("local"),
   PLATFORM: Joi.string().valid("ecs", "lambda").default("ecs"),
   PORT: Joi.number().default(8000),
@@ -18,9 +18,7 @@ const validationSchema = Joi.object({
   AWS_ACCESS_KEY_ID: Joi.string().optional(),
   AWS_SECRET_ACCESS_KEY: Joi.string().optional(),
   // Logging Configuration
-  LOG_LEVEL: Joi.string()
-    .valid("basic", "detailed", "none")
-    .default("basic"),
+  LOG_LEVEL: Joi.string().valid("basic", "detailed", "none").default("basic"),
   LOG_MAX_PAYLOAD_SIZE: Joi.number().min(1000).max(100000).default(10000),
   LOG_EXCLUDE_ROUTES: Joi.string().default("/health,/metrics,/api-docs"),
 });

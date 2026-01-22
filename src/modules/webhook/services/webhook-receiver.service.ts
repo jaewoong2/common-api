@@ -26,6 +26,7 @@ export class WebhookReceiverService {
   private readonly DEFAULT_WEBHOOK_APP_ID: string;
   private readonly webhookSqsQueueUrl: string;
   private readonly targetLambdaName: string;
+  private readonly adminJwtToken: string;
 
   constructor(
     private readonly userRepository: UserRepository,
@@ -34,16 +35,21 @@ export class WebhookReceiverService {
     private readonly configService: ConfigService,
   ) {
     // Config 로드 및 검증
-    this.DEFAULT_WEBHOOK_APP_ID =
-      this.configService.get<string>("webhook.defaultAppId") ||
-      "eb3fcbb2-7bb3-4ac7-aa38-1cb4bf00e405";
+    this.DEFAULT_WEBHOOK_APP_ID = this.configService.get<string>(
+      "webhook.defaultAppId",
+    );
 
-    this.webhookSqsQueueUrl =
-      this.configService.get<string>("webhook.sqsQueueUrl") || "";
+    this.webhookSqsQueueUrl = this.configService.get<string>(
+      "webhook.sqsQueueUrl",
+    );
 
-    this.targetLambdaName =
-      this.configService.get<string>("webhook.targetLambdaName") ||
-      "common-api-nestjs";
+    this.targetLambdaName = this.configService.get<string>(
+      "webhook.targetLambdaName",
+    );
+
+    this.adminJwtToken = this.configService.get<string>(
+      "webhook.adminJwtToken",
+    );
 
     // 필수 설정 검증
     this.validateConfig();
@@ -64,6 +70,10 @@ export class WebhookReceiverService {
       missingConfigs.push(
         "WEBHOOK_TARGET_LAMBDA_NAME (webhook.targetLambdaName)",
       );
+    }
+
+    if (!this.adminJwtToken) {
+      missingConfigs.push("WEBHOOK_ADMIN_JWT_TOKEN (webhook.adminJwtToken)");
     }
 
     if (missingConfigs.length > 0) {
@@ -138,6 +148,8 @@ export class WebhookReceiverService {
         jobId,
       );
 
+      console.log("jobMessage", jobMessage);
+
       await this.jobService.sendToSqs(
         jobMessage,
         this.webhookSqsQueueUrl || undefined,
@@ -192,6 +204,7 @@ export class WebhookReceiverService {
           "Content-Type": "application/json",
           "X-User-Id": userId.toString(),
           "X-Signal-Id": signalId,
+          Authorization: `Bearer ${this.adminJwtToken}`,
         },
         requestContext: {
           path: "/webhook/execute",

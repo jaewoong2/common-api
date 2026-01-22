@@ -70,11 +70,12 @@ export class BinanceTestService {
     const clientOrderId = `TEST_${Date.now()}`;
 
     // Spot reduceOnly check handled in client if needed, but primarily for Futures
-    return this.binanceClient.placeMarketOrder(
+    return this.binanceClient.placeOrder(
       credentials,
       {
         symbol,
         side,
+        orderType: "market", // Default to market for simple test
         quantity,
         clientOrderId,
         reduceOnly,

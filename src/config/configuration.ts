@@ -39,11 +39,12 @@ export default () => ({
   webhook: {
     sqsQueueUrl: process.env.WEBHOOK_SQS_QUEUE_URL || "",
     targetLambdaName:
-      process.env.WEBHOOK_TARGET_LAMBDA_NAME || "common-api-nestjs",
+      process.env.WEBHOOK_TARGET_LAMBDA_NAME || "binance-api-lambda",
     defaultAppId:
       process.env.DEFAULT_WEBHOOK_APP_ID ||
       "eb3fcbb2-7bb3-4ac7-aa38-1cb4bf00e405",
     lockTtlSeconds: Number(process.env.WEBHOOK_LOCK_TTL_SECONDS) || 180,
+    adminJwtToken: process.env.WEBHOOK_ADMIN_JWT_TOKEN,
   },
   kms: {
     keyId: process.env.AWS_KMS_KEY_ID || "",

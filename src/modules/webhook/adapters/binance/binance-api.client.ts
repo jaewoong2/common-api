@@ -3,9 +3,56 @@ import { ConfigService } from "@nestjs/config";
 import axios, { AxiosInstance } from "axios";
 import * as crypto from "crypto";
 
-interface ExchangeCredentials {
+export interface ExchangeCredentials {
   accessKey: string;
   secretKey: string;
+}
+
+export interface BalanceInfo {
+  asset: string;
+  balance: string;
+  availableBalance?: string; // futures only
+  crossWalletBalance?: string; // futures only
+}
+
+/**
+ * Position Risk Info (Futures Only)
+ * @description GET /fapi/v3/positionRisk 응답 구조
+ */
+export interface PositionInfo {
+  symbol: string;
+  positionAmt: string; // 양수=LONG, 음수=SHORT, 0=포지션 없음
+  entryPrice: string;
+  breakEvenPrice: string;
+  markPrice: string;
+  unRealizedProfit: string;
+  liquidationPrice: string;
+  leverage: string;
+  maxNotionalValue: string;
+  marginType: "isolated" | "cross";
+  isolatedMargin: string;
+  isAutoAddMargin: string;
+  positionSide: "BOTH" | "LONG" | "SHORT";
+  notional: string;
+  isolatedWallet: string;
+  updateTime: number;
+}
+
+/**
+ * Exchange Information
+ * @description GET /fapi/v1/exchangeInfo 응답 구조 (필요한 필드만)
+ */
+export interface ExchangeInfo {
+  symbol: string;
+  pricePrecision: number;
+  quantityPrecision: number;
+  filters: {
+    filterType: "PRICE_FILTER" | "LOT_SIZE" | "MIN_NOTIONAL" | string;
+    tickSize?: string; // PRICE_FILTER
+    stepSize?: string; // LOT_SIZE
+    minQty?: string; // LOT_SIZE
+    minNotional?: string; // MIN_NOTIONAL
+  }[];
 }
 
 /**
@@ -80,12 +127,48 @@ export class BinanceApiClient {
   }
 
   /**
+   * Get Exchange Info (Public)
+   * @description 심볼의 정밀도(precision) 및 필터 정보를 조회
+   */
+  async getExchangeInfo(
+    symbol: string,
+    market: "futures_um" | "spot" = "futures_um",
+  ): Promise<ExchangeInfo | null> {
+    try {
+      const endpoint =
+        market === "spot" ? "/api/v3/exchangeInfo" : "/fapi/v1/exchangeInfo";
+      const baseUrl = this.getBaseUrl(market);
+      // Public API 호출이므로 별도 client 생성 없이 axios 사용
+      const response = await axios.get(`${baseUrl}${endpoint}`, {
+        params: { symbol },
+        timeout: 5000,
+      });
+
+      // Binance returns { symbols: [...] }
+      if (
+        response.data &&
+        response.data.symbols &&
+        response.data.symbols.length > 0
+      ) {
+        return response.data.symbols[0] as ExchangeInfo;
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to get exchange info for ${symbol}: ${error.message}`,
+      );
+      return null; // 실패 시 null 반환 (기본 정밀도 사용)
+    }
+  }
+
+  /**
    * Get account balance
    */
   async getBalance(
     credentials: ExchangeCredentials,
     market: "futures_um" | "spot" = "futures_um",
-  ): Promise<{ asset: string; balance: string }[]> {
+  ): Promise<BalanceInfo[]> {
     const client = this.createClient(credentials, market);
     const params = this.buildSignedParams({}, credentials.secretKey);
 
@@ -98,7 +181,12 @@ export class BinanceApiClient {
         const response = await client.get(`/api/v3/account?${params}`);
         // Transform Spot response to match Futures format for consistent consumption
         // Spot response: { balances: [ { asset: 'BTC', free: '0.1', locked: '0.0' } ] }
-        return response.data.balances.map((b: any) => ({
+        interface SpotBalance {
+          asset: string;
+          free: string;
+          locked: string;
+        }
+        return response.data.balances.map((b: SpotBalance) => ({
           asset: b.asset,
           balance: (parseFloat(b.free) + parseFloat(b.locked)).toString(),
           availableBalance: b.free,
@@ -112,6 +200,41 @@ export class BinanceApiClient {
       }
     } catch (error) {
       this.logger.error(`Get balance failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get position risk/information for a symbol (Futures Only)
+   * @description Close 액션 실행 전 현재 포지션 조회용
+   * @returns PositionInfo[]
+   */
+  async getPositionRisk(
+    credentials: ExchangeCredentials,
+    symbol?: string,
+  ): Promise<PositionInfo[]> {
+    const client = this.createClient(credentials, "futures_um");
+    const params: Record<string, string | number> = {};
+    if (symbol) params.symbol = symbol;
+
+    const signedParams = this.buildSignedParams(params, credentials.secretKey);
+
+    try {
+      // V3 endpoint
+      const response = await client.get(
+        `/fapi/v3/positionRisk?${signedParams}`,
+      );
+
+      if (!response.data || response.data.length === 0) {
+        return [];
+      }
+
+      // If symbol is provided, filter for relevant position (ONE_WAY or BOTH) similar to before
+      // But for general purpose, returning the array is better.
+      // The caller should filter.
+      return response.data as PositionInfo[];
+    } catch (error) {
+      this.logger.error(`Get position risk failed: ${error.message}`);
       throw error;
     }
   }
@@ -147,14 +270,17 @@ export class BinanceApiClient {
   }
 
   /**
-   * Place market order
+   * Place order (MARKET or LIMIT)
+   * @description Market 또는 Limit 주문 실행
    */
-  async placeMarketOrder(
+  async placeOrder(
     credentials: ExchangeCredentials,
     params: {
       symbol: string;
       side: "BUY" | "SELL";
+      orderType: "market" | "limit";
       quantity: string;
+      price?: string; // limit 주문 시 필수
       clientOrderId: string;
       reduceOnly?: boolean;
     },
@@ -170,19 +296,31 @@ export class BinanceApiClient {
   }> {
     const client = this.createClient(credentials, market);
 
+    const orderType = params.orderType === "limit" ? "LIMIT" : "MARKET";
+
     const orderParams: Record<string, string | number> = {
       symbol: params.symbol,
       side: params.side,
-      type: "MARKET",
+      type: orderType,
       quantity: params.quantity,
       newClientOrderId: params.clientOrderId,
     };
 
+    // Limit 주문 시 가격 필수
+    if (params.orderType === "limit") {
+      if (!params.price) {
+        throw new Error("Price is required for limit orders");
+      }
+      orderParams.price = params.price;
+      // Futures limit orders require timeInForce
+      if (market === "futures_um") {
+        orderParams.timeInForce = "GTC"; // Good Till Cancel
+      }
+    }
+
     if (market === "futures_um" && params.reduceOnly) {
       orderParams.reduceOnly = "true";
     }
-
-    // Spot does not support reduceOnly in the same way, usually ignored or handled differently
 
     const signedParams = this.buildSignedParams(
       orderParams,
@@ -194,7 +332,7 @@ export class BinanceApiClient {
       const response = await client.post(endpoint, signedParams);
 
       this.logger.log(
-        `Order placed: ${params.clientOrderId}, orderId=${response.data.orderId}`,
+        `${orderType} order placed: ${params.clientOrderId}, orderId=${response.data.orderId}`,
       );
 
       // Normalize response
@@ -209,7 +347,7 @@ export class BinanceApiClient {
                 parseFloat(response.data.cummulativeQuoteQty) /
                 parseFloat(response.data.executedQty)
               ).toString()
-            : "0", // Approx avg price
+            : response.data.price || "0",
           clientOrderId: response.data.clientOrderId,
           status: response.data.status,
         };
@@ -218,7 +356,7 @@ export class BinanceApiClient {
       return response.data;
     } catch (error) {
       this.logger.error(
-        `Place order failed: ${error.message}`,
+        `Place ${orderType} order failed: ${error.message}`,
         error.response?.data,
       );
       throw error;
@@ -252,7 +390,8 @@ export class BinanceApiClient {
       quantity: params.quantity,
       stopPrice: params.stopPrice,
       newClientOrderId: params.clientOrderId,
-      closePosition: "true",
+      // Note: closePosition과 quantity는 동시 사용 불가 (에러 -4137)
+      // quantity를 사용하면 지정된 수량만 청산
     };
 
     const signedParams = this.buildSignedParams(
@@ -297,7 +436,7 @@ export class BinanceApiClient {
       quantity: params.quantity,
       stopPrice: params.stopPrice,
       newClientOrderId: params.clientOrderId,
-      closePosition: "true",
+      // Note: closePosition과 quantity는 동시 사용 불가 (에러 -4137)
     };
 
     const signedParams = this.buildSignedParams(

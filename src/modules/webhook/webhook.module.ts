@@ -9,11 +9,15 @@ import {
   WebhookController,
   WebhookExecutorController,
   BinanceTestController,
+  AdminRecoveryController,
+  TradeController,
 } from "./controllers";
 import {
   WebhookReceiverService,
   WebhookExecutorService,
   BinanceTestService,
+  AdminRecoveryService,
+  TradeService,
 } from "./services";
 import {
   WebhookRequestRepository,
@@ -24,6 +28,7 @@ import {
   BinanceAdapter,
   BinanceApiClient,
 } from "./adapters";
+import { PROVIDER_ADAPTERS } from "./adapters/provider-adapters.token";
 import { UserModule } from "../user/user.module";
 import { JobModule } from "../job/job.module";
 import { ExchangeKeysModule } from "../exchange-keys";
@@ -49,19 +54,29 @@ import { AuthModule } from "../auth/auth.module";
     WebhookController,
     WebhookExecutorController,
     BinanceTestController,
+    AdminRecoveryController,
+    TradeController,
   ],
   providers: [
     // Services
     WebhookReceiverService,
     WebhookExecutorService,
     BinanceTestService,
+    AdminRecoveryService,
+    TradeService,
     // Repositories
     WebhookRequestRepository,
     ProcessingLockRepository,
-    // Adapters
-    ProviderAdapterRegistry,
+    // Adapters (개별 등록)
     BinanceAdapter,
     BinanceApiClient,
+    // DI Token Factory: 새 adapter 추가 시 여기만 수정
+    {
+      provide: PROVIDER_ADAPTERS,
+      useFactory: (binanceAdapter: BinanceAdapter) => [binanceAdapter],
+      inject: [BinanceAdapter],
+    },
+    ProviderAdapterRegistry,
   ],
   exports: [
     WebhookReceiverService,

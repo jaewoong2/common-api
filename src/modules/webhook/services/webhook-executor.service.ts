@@ -23,21 +23,14 @@ import {
 
 /**
  * Webhook Execute Request DTO
- * @description Lambda로부터 수신하는 실행 요청
+ * @description Lambda로부터 수신하는 실행 요청 (lambdaProxyMessage.body 구조)
+ * @note 스펙: job_message_architecture.md line 186-188
  */
 export interface ExecuteRequestDto {
-  job_id: string;
   user_id: string;
-  payload: {
-    signal_id: string;
-    provider: string;
-    auth_token: string;
-    request: BasePayload & { exchange?: string; market?: string };
-  };
-  metadata: {
-    trace_id: string;
-    retry_count: number;
-  };
+  signal_id: string;
+  provider: string;
+  request: BasePayload & { exchange?: string; market?: string };
 }
 
 /**
@@ -66,8 +59,12 @@ export class WebhookExecutorService {
   async execute(
     request: ExecuteRequestDto,
   ): Promise<WebhookExecutionResultDto> {
-    const { user_id: userId, payload } = request;
-    const { signal_id: signalId, provider, request: webhookPayload } = payload;
+    const {
+      user_id: userId,
+      signal_id: signalId,
+      provider,
+      request: webhookPayload,
+    } = request;
 
     this.logger.log(
       `Executing: userId=${userId}, signalId=${signalId}, provider=${provider}`,
@@ -162,11 +159,12 @@ export class WebhookExecutorService {
     // 4. Payload 검증 (Binance-specific validation만)
     await adapter.validatePayload(webhookPayload);
 
-    // 5. Request 변환
+    // 5. Request 변환 (잔고 기반 수량 계산 포함)
     const providerRequest = await adapter.transformRequest(
       userId,
       signalId,
       webhookPayload,
+      credentials,
     );
 
     // 6. 주문 실행

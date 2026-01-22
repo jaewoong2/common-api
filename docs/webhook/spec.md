@@ -68,7 +68,7 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
 {
   "ok": true,
   "data": {
-    "user_id": 1,
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "test@a.com",
     "auth_token": "a3c1...uuid",
     "created_at": "2026-01-19T10:00:00Z"
@@ -347,15 +347,22 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 - ProviderPayload는 BasePayload를 확장하며, provider별 프로토콜/필드를 어댑터에서만 해석한다.
 - DTO/검증은 `BasePayload` + `ProviderPayload` 조합으로 분리한다.
 
-**BasePayload (예시)**
+**BasePayload (Updated)**
 ```json
 {
   "ticker": "BTCUSDT",
   "action": "open_long",
+  "entry": {
+    "type": "limit",
+    "price": 50000
+  },
   "qty": { "type": "percent", "value": 50 },
   "strategy": {
-    "stop_loss": { "type": "percent", "value": 2.0 },
-    "take_profit": { "type": "percent", "value": 5.0 }
+    "stop_loss": { "type": "price", "value": 49000 },
+    "take_profit": [
+      { "type": "percent", "value": 5, "qty_percent": 50 },
+      { "type": "price", "value": 55000, "qty_percent": 100 } 
+    ]
   },
   "options": {
     "signal_id": "{{timenow}}"
@@ -548,6 +555,118 @@ export class WebhookModule {}
 3. PROVIDER_ADAPTERS factory에 inject
 → 기존 코드 수정 없이 확장 완료
 
+### 5.5 Action별 동작 명세
+
+> [!IMPORTANT]
+> **Open vs Close 액션의 핵심 차이**
+> - **Open 액션**: 잔고(balance) 기반 수량 계산, TP/SL 설정 적용
+> - **Close 액션**: 포지션(position) 기반 수량 계산, TP/SL 무시, reduceOnly=true 강제
+
+#### Action-Side-ReduceOnly 매핑 테이블
+
+| Action | API Side | reduceOnly | 수량 계산 기준 | TP/SL |
+|--------|----------|------------|--------------|-------|
+| `open_long` | BUY | false | 잔고(balance) 기반 | ✅ 적용 |
+| `open_short` | SELL | false | 잔고(balance) 기반 | ✅ 적용 |
+| `close_long` | SELL | **true** (강제) | 포지션(positionAmt) 기반 | ❌ 무시 |
+| `close_short` | BUY | **true** (강제) | 포지션(positionAmt) 기반 | ❌ 무시 |
+| `close_all` | SELL/BUY* | **true** (강제) | 포지션 전량(100%) | ❌ 무시 |
+
+\* `close_all`의 side는 현재 포지션 방향에 따라 자동 결정 (LONG→SELL, SHORT→BUY)
+
+#### reduceOnly 옵션 처리 규칙
+
+```
+close_* 액션:
+  - payload의 options.reduce_only 값 무시
+  - 내부적으로 항상 reduceOnly=true 적용
+  - 이유: 청산 시 실수로 반대 포지션이 열리는 것 방지
+```
+
+### 5.6 Close Action 상세 명세
+
+#### 5.6.1 수량 계산 공식
+
+**Open 액션 (open_long, open_short)**
+```
+quantity = (balance × leverage × percent / 100) / currentPrice
+```
+
+**Close 액션 (close_long, close_short)**
+```
+quantity = |positionAmt| × (percent / 100)
+```
+
+**Close All 액션**
+```
+quantity = |positionAmt|  // 무조건 100%
+qty 필드 무시
+```
+
+#### 5.6.2 포지션 조회 API (Binance)
+
+Close 액션 실행 전 반드시 현재 포지션 조회 필요:
+
+```
+GET /fapi/v3/positionRisk
+```
+
+**Response 주요 필드:**
+```ts
+interface PositionInfo {
+  symbol: string;           // 심볼 (e.g., "BTCUSDT")
+  positionAmt: string;      // 포지션 수량 (양수=LONG, 음수=SHORT)
+  entryPrice: string;       // 평균 진입가
+  unRealizedProfit: string; // 미실현 손익
+  positionSide: 'BOTH' | 'LONG' | 'SHORT';
+}
+```
+
+**positionAmt 해석:**
+- `positionAmt > 0`: LONG 포지션 → close 시 SELL
+- `positionAmt < 0`: SHORT 포지션 → close 시 BUY
+- `positionAmt = 0`: 포지션 없음 → close 불가 (에러 반환)
+
+#### 5.6.3 Close Action Payload 예시
+
+**close_long (50% 부분 청산)**
+```json
+{
+  "exchange": "binance",
+  "market": "futures_um",
+  "ticker": "BTCUSDT",
+  "action": "close_long",
+  "qty": { "type": "percent", "value": 50 },
+  "options": {
+    "signal_id": "{{timenow}}"
+  }
+}
+```
+
+**close_all (전량 청산)**
+```json
+{
+  "exchange": "binance",
+  "market": "futures_um",
+  "ticker": "BTCUSDT",
+  "action": "close_all",
+  "options": {
+    "signal_id": "{{timenow}}"
+  }
+}
+```
+
+> [!NOTE]
+> `close_all`에서 `qty` 필드는 선택사항이며 무시됨 (항상 100% 청산)
+
+#### 5.6.4 Close Action 에러 케이스
+
+| 상황 | 에러 코드 | 메시지 |
+|-----|---------|--------|
+| 포지션 없음 | `POSITION_NOT_FOUND` | No open position for {symbol} |
+| 포지션 방향 불일치 | `POSITION_DIRECTION_MISMATCH` | Cannot close_long: current position is SHORT |
+| 수량 계산 실패 | `QUANTITY_CALCULATION_FAILED` | Failed to calculate close quantity |
+
 ### 5.4 Internal Execution API (Lambda 전용)
 
 > [!WARNING]
@@ -566,7 +685,7 @@ export class WebhookModule {}
 {
   "job_id": "550e8400-e29b-41d4-a716-446655440000",
   "job_type": "webhook_execution",
-  "user_id": 1,
+  "user_id": "550e8400-e29b-41d4-a716-446655440001",
   "payload": {
     "signal_id": "1737360000000",
     "provider": "binance",
@@ -810,7 +929,7 @@ SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 
 **Request**
 ```json
 {
-  "user_id": 1,
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
   "signal_id": "123"
 }
 ```

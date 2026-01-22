@@ -1,4 +1,11 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from "@nestjs/common";
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from "@nestjs/common";
 import {
   ApiTags,
   ApiOperation,
@@ -6,11 +13,15 @@ import {
   ApiExcludeEndpoint,
 } from "@nestjs/swagger";
 import { WebhookExecutorService, ExecuteRequestDto } from "../services";
+import { JwtAuthGuard } from "@common/guards/jwt-auth.guard";
+import { RolesGuard } from "@common/guards/roles.guard";
+import { Roles } from "@common/decorators/roles.decorator";
+import { UserRole } from "@common/enums";
 
 /**
  * Webhook Executor Controller
  * @description 내부 전용 - Lambda에서 호출하는 엔드포인트
- * @warning 외부 노출 금지 (VPC 내부 또는 IAM 인증 필수)
+ * @security Admin JWT 토큰 필수 (VPC 내부 배포)
  */
 @ApiTags("Webhook Internal")
 @Controller("webhook")
@@ -20,12 +31,17 @@ export class WebhookExecutorController {
   /**
    * POST /webhook/execute
    * @description Lambda로부터 주문 실행 요청 수신
+   * @security Admin JWT Token in Authorization header
    */
   @Post("execute")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.APP_ADMIN, UserRole.PLATFORM_SUPER_ADMIN)
   @ApiExcludeEndpoint() // Swagger에서 숨김
   @ApiOperation({ summary: "내부 전용 - 주문 실행" })
   @ApiResponse({ status: 200, description: "실행 성공" })
+  @ApiResponse({ status: 401, description: "UNAUTHORIZED" })
+  @ApiResponse({ status: 403, description: "FORBIDDEN - Admin role required" })
   @ApiResponse({ status: 409, description: "LOCK_CONFLICT" })
   @ApiResponse({ status: 500, description: "EXECUTION_FAILED" })
   async execute(@Body() request: ExecuteRequestDto) {

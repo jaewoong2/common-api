@@ -5,10 +5,10 @@ import {
   Param,
   HttpCode,
   HttpStatus,
-  BadRequestException,
   InternalServerErrorException,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from "@nestjs/swagger";
+import { Public } from "@common/decorators/public.decorator";
 import { WebhookReceiverService } from "../services";
 import { BinancePayloadDto, WebhookResponseDto, WebhookErrorDto } from "../dto";
 
@@ -25,6 +25,7 @@ export class WebhookController {
    * POST /webhook/:provider/:auth_token
    * @description TradingView webhook 수신
    */
+  @Public()
   @Post(":provider/:auth_token")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Webhook 수신 (TradingView)" })

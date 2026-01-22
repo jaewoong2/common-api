@@ -25,6 +25,7 @@ import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { ExchangeKeysModule } from "./modules/exchange-keys";
 import { WebhookModule } from "./modules/webhook";
 import { TradeLogsModule } from "./modules/trade-logs";
+import { WebhookBuilderModule } from "./modules/webhook-builder";
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { TradeLogsModule } from "./modules/trade-logs";
     ExchangeKeysModule,
     WebhookModule,
     TradeLogsModule,
+    WebhookBuilderModule,
   ],
   providers: [
     {
