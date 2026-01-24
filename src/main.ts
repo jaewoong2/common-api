@@ -25,6 +25,17 @@ let runningApp: NestFastifyApplication | null = null;
  * Applies global middleware, filters, and interceptors.
  */
 function configureHttp(app: NestFastifyApplication): void {
+  // Enable CORS
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN?.split(",") || [
+      "http://localhost:5173",
+      "http://localhost:3000",
+    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    credentials: true,
+  });
+
   app.useLogger(app.get(AppLogger));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   const httpAdapterHost = app.get(HttpAdapterHost);
@@ -92,7 +103,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
-    { bufferLogs: true }
+    { bufferLogs: true },
   );
 
   runningApp = app;
@@ -105,7 +116,7 @@ async function bootstrap() {
 
   console.log(`🚀 Application is running on: http://localhost:${port}`);
   console.log(
-    `📚 Swagger UI is available at: http://localhost:${port}/api-docs`
+    `📚 Swagger UI is available at: http://localhost:${port}/api-docs`,
   );
 
   enableHotReload(app);

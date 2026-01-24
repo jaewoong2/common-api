@@ -5,8 +5,6 @@ import { TradePosition, TradeBalance } from "../../../common/types";
 
 @Injectable()
 export class TradeService {
-  private readonly logger = new Logger(TradeService.name);
-
   constructor(
     private readonly keyService: ExchangeKeyService,
     private readonly registry: ProviderAdapterRegistry,
@@ -58,7 +56,6 @@ export class TradeService {
 
     const credentials = await this.keyService.getCredentials(userId, exchange);
 
-    // Call Adapter (Standardized)
     return adapter.getBalances(credentials, assets, { market });
   }
 }

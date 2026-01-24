@@ -5,39 +5,55 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
 ## 0. 기본 정보
 
 ### Base URL
+
 `https://api.service.com/v1`
 
 ### 인증 방식
+
 - Dashboard/API 인증: `Authorization: Bearer <access_token>`
 - Webhook 인증: URL Path Param `:provider/:auth_token` + (옵션) HMAC 헤더
 
 ### provider 라우팅 규칙
+
 - Webhook 엔드포인트는 `/webhook/:provider/:auth_token` 형식만 허용 (REST only)
 - provider 값은 배포/설정으로 확장하며 스펙에서는 고정하지 않음
 - 예시: `binance`, `hantoo` (국내 증권사 API 예시)
 
 ### 공통 응답 포맷
+
 모든 API는 아래 규격을 따른다.
 
+> [!IMPORTANT]
+> ResponseInterceptor에 의해 모든 응답이 자동 래핑됩니다.
+> 실제 응답 구조: `{success, data: {ok, data}, request_id, timestamp}`
+
 **✅ 성공**
+
 ```json
 {
   "ok": true,
+
   "data": {},
-  "meta": { "trace_id": "..." }
+    "meta": { "trace_id": "..." },
+  "request_id": "req-xyz",
+  "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
 
 **❌ 실패**
+
 ```json
 {
   "ok": false,
+
   "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "qty.value must be positive",
-    "details": {}
-  },
-  "meta": { "trace_id": "..." }
+      "code": "VALIDATION_ERROR",
+      "message": "qty.value must be positive",
+      "details": {}
+    },
+    "meta": { "trace_id": "..." },
+  "request_id": "req-xyz",
+  "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
 
@@ -50,8 +66,9 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
 > 별도 구현 없이 기존 시스템과 통합하여 사용하세요.
 
 **기존 서비스 엔드포인트 사용**
+
 - POST /auth/register - 회원가입
-- POST /auth/login - 로그인  
+- POST /auth/login - 로그인
 - POST /auth/logout - 로그아웃
 
 상세 스펙은 기존 인증 서비스 문서를 참조하세요.
@@ -61,18 +78,23 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
 ### 2.1 내 정보 조회
 
 #### GET /users/me
+
 - Auth: Bearer
 
 **Response 200**
+
 ```json
 {
   "ok": true,
+
   "data": {
-    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-    "email": "test@a.com",
-    "auth_token": "a3c1...uuid",
-    "created_at": "2026-01-19T10:00:00Z"
-  }
+      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "test@a.com",
+      "auth_token": "a3c1...uuid",
+      "created_at": "2026-01-19T10:00:00Z"
+    },
+  "request_id": "req-user-me",
+  "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
 
@@ -81,27 +103,35 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
 ### 2.2 Webhook URL 조회
 
 #### GET /users/webhook
+
 - Auth: Bearer
 
 **Response 200**
+
 ```json
 {
   "ok": true,
+
   "data": {
-    "webhook_url": "https://api.service.com/v1/webhook/binance/a3c1...uuid"
-  }
+      "webhook_url": "https://api.service.com/v1/webhook/binance/a3c1...uuid"
+    },
+  "request_id": "req-webhook-url",
+  "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
 
 ✅ provider는 호출 시 선택하는 라우팅 키이며 예시는 `binance` 기준이다.
 
 ### 2.3 Webhook Secret (HMAC) 활성화/재발급 (선택 기능)
+
 SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 
 #### POST /users/webhook/secret/rotate
+
 - Auth: Bearer
 
 **Response 200**
+
 ```json
 {
   "ok": true,
@@ -117,9 +147,11 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ### 3.1 거래소 키 등록
 
 #### POST /users/keys
+
 - Auth: Bearer
 
 **Request**
+
 ```json
 {
   "exchange": "binance",
@@ -130,6 +162,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ```
 
 **Rules**
+
 - secret_key는 절대 평문 저장 금지
 - **AWS KMS (Key Management Service)를 사용하여 암호화 키 관리**
   - KMS CMK(Customer Master Key)로 데이터 키 생성/관리
@@ -138,51 +171,70 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 - label은 유저 내 중복 가능(허용) or unique(선택)
 
 **Response 201**
+
 ```json
 {
   "ok": true,
+
   "data": {
-    "key_id": 10
-  }
+      "key_id": 10
+    },
+  "request_id": "req-create-key",
+  "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
 
 **Errors**
+
 - `400 VALIDATION_ERROR`
 - `409 DUPLICATE_KEY` (원하면 exchange+access_key unique 걸어도 됨)
 
 ### 3.2 거래소 키 목록 조회 (Secret 마스킹)
 
 #### GET /users/keys
+
 - Auth: Bearer
 
 **Response 200**
+
 ```json
 {
   "ok": true,
+
   "data": [
-    {
-      "key_id": 10,
-      "exchange": "binance",
-      "label": "main",
-      "access_key_masked": "AK***1234",
-      "created_at": "2026-01-19T10:00:00Z"
-    }
-  ]
+      {
+        "key_id": 10,
+        "exchange": "binance",
+        "label": "main",
+        "access_key_masked": "AK***1234",
+        "created_at": "2026-01-19T10:00:00Z"
+      }
+    ],
+  "request_id": "req-list-keys",
+  "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
 
 ### 3.3 거래소 키 삭제
 
 #### DELETE /users/keys/:key_id
+
 - Auth: Bearer
 
 **Response 200**
+
 ```json
-{ "ok": true, "data": {} }
+{
+  "ok": true,
+
+  "data": {},
+  "request_id": "req-delete-key",
+  "timestamp": "2026-01-24T05:30:36.950Z"
+}
 ```
 
 **Errors**
+
 - `404 KEY_NOT_FOUND`
 
 ## 4. Logs / History API (매매 이력)
@@ -190,9 +242,11 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ### 4.1 매매 이력 조회 (Paging + Filter)
 
 #### GET /logs
+
 - Auth: Bearer
 
 **Query Params**
+
 - page (default 1)
 - limit (default 20, max 100)
 - status (optional: SUCCESS|FAIL|PARTIAL_FAIL|RETRYING)
@@ -202,6 +256,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 - from / to (optional ISO date)
 
 **Response 200**
+
 ```json
 {
   "ok": true,
@@ -228,9 +283,11 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ### 4.2 매매 이력 상세 조회 (Entry/Exit JSON 보기)
 
 #### GET /logs/:log_id
+
 - Auth: Bearer
 
 **Response 200**
+
 ```json
 {
   "ok": true,
@@ -251,6 +308,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ### 5.1 Webhook 수신
 
 #### POST /webhook/:provider/:auth_token
+
 - Auth: Path Param (:auth_token)
 
 > [!WARNING]
@@ -260,6 +318,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 > 보안 강화가 필요한 경우 IP 화이트리스트, Rate Limiting 등 다른 방법을 고려하세요.
 
 **Request Body**
+
 ```json
 {
   "exchange": "binance",
@@ -284,6 +343,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ✅ provider와 payload의 exchange가 동시에 존재하는 경우 불일치 시 400 처리.
 
 **Receiver 처리 흐름 (중요)**
+
 1. Payload 검증 (DTO validation)
 2. DB에 webhook_requests 레코드 INSERT (status=RECEIVED)
 3. **`job_service`를 통해 job message 발행** (Webhook Event SQS로 전송)
@@ -297,6 +357,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 > 상세 아키텍처는 [job_message_architecture.md](./job_message_architecture.md) 참조.
 
 **✅ Response 200 - queued**
+
 ```json
 {
   "ok": true,
@@ -309,6 +370,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ```
 
 **✅ Response 200 - already_processed**
+
 ```json
 {
   "ok": true,
@@ -319,6 +381,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ```
 
 **❌ 400 - payload invalid**
+
 ```json
 {
   "ok": false,
@@ -327,6 +390,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ```
 
 **❌ 401 - token invalid / signature mismatch**
+
 ```json
 {
   "ok": false,
@@ -335,6 +399,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ```
 
 **❌ 500 - enqueue failed**
+
 ```json
 {
   "ok": false,
@@ -343,11 +408,13 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ```
 
 ### 5.2 Payload 확장 원칙 (BasePayload + ProviderPayload)
+
 - BasePayload는 모든 provider에서 공통으로 사용되는 최소 필드 집합이다.
 - ProviderPayload는 BasePayload를 확장하며, provider별 프로토콜/필드를 어댑터에서만 해석한다.
 - DTO/검증은 `BasePayload` + `ProviderPayload` 조합으로 분리한다.
 
 **BasePayload (Updated)**
+
 ```json
 {
   "ticker": "BTCUSDT",
@@ -361,7 +428,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
     "stop_loss": { "type": "price", "value": 49000 },
     "take_profit": [
       { "type": "percent", "value": 5, "qty_percent": 50 },
-      { "type": "price", "value": 55000, "qty_percent": 100 } 
+      { "type": "price", "value": 55000, "qty_percent": 100 }
     ]
   },
   "options": {
@@ -371,6 +438,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ```
 
 **ProviderPayload (예시: binance)**
+
 ```json
 {
   "exchange": "binance",
@@ -383,6 +451,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ```
 
 **ProviderPayload (예시: 국내 증권사 API 예: 한투증)**
+
 ```json
 {
   "market": "KRX",
@@ -394,11 +463,13 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 ### 5.3 Provider Adapter 설계 (구체적 구현 가이드)
 
 **설계 목표**
+
 - 거래소/증권사별 프로토콜 차이를 추상화
 - 새로운 provider 추가 시 기존 코드 수정 없이 확장 가능
 - 공통 비즈니스 로직과 provider별 구현 완전 분리
 
 **아키텍처 레이어**
+
 ```
 Webhook Controller → Use Case → Provider Adapter Registry → Concrete Adapter
                                                            ↓
@@ -408,19 +479,23 @@ Webhook Controller → Use Case → Provider Adapter Registry → Concrete Adapt
 ```
 
 **1) Adapter 인터페이스 정의**
+
 ```ts
 export interface ProviderAdapter {
   readonly provider: string;
-  
+
   // Payload 검증 (provider별 스키마)
   validatePayload(payload: BasePayload): Promise<void>;
-  
+
   // Payload → Provider API Request 변환
   transformRequest(payload: BasePayload): Promise<ProviderRequest>;
-  
+
   // 주문 실행
-  execute(request: ProviderRequest, credentials: ExchangeCredentials): Promise<ExecutionResult>;
-  
+  execute(
+    request: ProviderRequest,
+    credentials: ExchangeCredentials,
+  ): Promise<ExecutionResult>;
+
   // Provider API Response → 표준 응답 변환
   transformResponse(providerResponse: any): ExecutionResult;
 }
@@ -434,62 +509,71 @@ export interface ExecutionResult {
 ```
 
 **2) Binance Adapter 구현 예시**
+
 ```ts
 @Injectable()
 export class BinanceAdapter implements ProviderAdapter {
-  readonly provider = 'binance';
-  
+  readonly provider = "binance";
+
   constructor(
     private readonly httpService: HttpService,
     private readonly config: ConfigService,
   ) {}
-  
+
   async validatePayload(payload: BasePayload): Promise<void> {
     const schema = BinancePayloadSchema; // Zod/class-validator
     await schema.parseAsync(payload);
   }
-  
+
   async transformRequest(payload: BasePayload): Promise<BinanceRequest> {
     // action → Binance API params 변환
     // qty.percent → USDT 금액 계산
     // leverage 설정 등
-    return { /* Binance-specific request */ };
+    return {
+      /* Binance-specific request */
+    };
   }
-  
-  async execute(request: BinanceRequest, credentials: ExchangeCredentials): Promise<ExecutionResult> {
+
+  async execute(
+    request: BinanceRequest,
+    credentials: ExchangeCredentials,
+  ): Promise<ExecutionResult> {
     // Binance REST API 호출
     // clientOrderId 생성
     // Entry + TP/SL (OCO or 개별) 주문
     const entryResult = await this.placeOrder(request.entry);
     const exitResult = await this.placeExitOrders(request.exit);
-    
+
     return this.transformResponse({ entry: entryResult, exit: exitResult });
   }
-  
+
   transformResponse(providerResponse: any): ExecutionResult {
     return {
       success: true,
-      entry_json: { /* 표준화된 Entry */ },
-      exit_json: { /* 표준화된 Exit */ },
+      entry_json: {
+        /* 표준화된 Entry */
+      },
+      exit_json: {
+        /* 표준화된 Exit */
+      },
     };
   }
 }
 ```
 
 **3) Provider Adapter Registry (DI 기반 라우팅)**
+
 ```ts
 @Injectable()
 export class ProviderAdapterRegistry {
   private readonly adapters = new Map<string, ProviderAdapter>();
-  
-  constructor(
-    @Inject(PROVIDER_ADAPTERS) adapters: ProviderAdapter[],
-  ) {
-    adapters.forEach(adapter => {
+
+  constructor(@Inject(PROVIDER_ADAPTERS) adapters: ProviderAdapter[]) {
+    adapters.forEach((adapter) => {
       this.adapters.set(adapter.provider, adapter);
     });
   }
-  
+
   getAdapter(provider: string): ProviderAdapter {
     const adapter = this.adapters.get(provider);
     if (!adapter) {
@@ -501,6 +585,7 @@ export class ProviderAdapterRegistry {
 ```
 
 **4) Use Case에서 사용**
+
 ```ts
 @Injectable()
 export class ExecuteWebhookUseCase {
@@ -508,20 +593,27 @@ export class ExecuteWebhookUseCase {
     private readonly registry: ProviderAdapterRegistry,
     private readonly keyService: ExchangeKeyService,
   ) {}
-  
-  async execute(provider: string, payload: BasePayload, userId: number): Promise<ExecutionResult> {
+
+  async execute(
+    provider: string,
+    payload: BasePayload,
+    userId: number,
+  ): Promise<ExecutionResult> {
     // 1. Provider Adapter 가져오기
     const adapter = this.registry.getAdapter(provider);
-    
+
     // 2. Payload 검증
     await adapter.validatePayload(payload);
-    
+
     // 3. Request 변환
     const request = await adapter.transformRequest(payload);
-    
+
     // 4. 거래소 키 조회
-    const credentials = await this.keyService.getCredentials(userId, payload.exchange);
-    
+    const credentials = await this.keyService.getCredentials(
+      userId,
+      payload.exchange,
+    );
+
     // 5. 실행
     return adapter.execute(request, credentials);
   }
@@ -529,6 +621,7 @@ export class ExecuteWebhookUseCase {
 ```
 
 **5) Module 등록**
+
 ```ts
 @Module({
   providers: [
@@ -536,10 +629,10 @@ export class ExecuteWebhookUseCase {
     HantooAdapter,
     {
       provide: PROVIDER_ADAPTERS,
-      useFactory: (
-        binance: BinanceAdapter,
-        hantoo: HantooAdapter,
-      ) => [binance, hantoo],
+      useFactory: (binance: BinanceAdapter, hantoo: HantooAdapter) => [
+        binance,
+        hantoo,
+      ],
       inject: [BinanceAdapter, HantooAdapter],
     },
     ProviderAdapterRegistry,
@@ -550,27 +643,29 @@ export class WebhookModule {}
 ```
 
 **확장 시나리오: Upbit Adapter 추가**
+
 1. `UpbitAdapter` 클래스 구현 (ProviderAdapter 인터페이스 준수)
 2. Module providers에 추가
 3. PROVIDER_ADAPTERS factory에 inject
-→ 기존 코드 수정 없이 확장 완료
+   → 기존 코드 수정 없이 확장 완료
 
 ### 5.5 Action별 동작 명세
 
 > [!IMPORTANT]
 > **Open vs Close 액션의 핵심 차이**
+>
 > - **Open 액션**: 잔고(balance) 기반 수량 계산, TP/SL 설정 적용
 > - **Close 액션**: 포지션(position) 기반 수량 계산, TP/SL 무시, reduceOnly=true 강제
 
 #### Action-Side-ReduceOnly 매핑 테이블
 
-| Action | API Side | reduceOnly | 수량 계산 기준 | TP/SL |
-|--------|----------|------------|--------------|-------|
-| `open_long` | BUY | false | 잔고(balance) 기반 | ✅ 적용 |
-| `open_short` | SELL | false | 잔고(balance) 기반 | ✅ 적용 |
-| `close_long` | SELL | **true** (강제) | 포지션(positionAmt) 기반 | ❌ 무시 |
-| `close_short` | BUY | **true** (강제) | 포지션(positionAmt) 기반 | ❌ 무시 |
-| `close_all` | SELL/BUY* | **true** (강제) | 포지션 전량(100%) | ❌ 무시 |
+| Action        | API Side   | reduceOnly      | 수량 계산 기준           | TP/SL   |
+| ------------- | ---------- | --------------- | ------------------------ | ------- |
+| `open_long`   | BUY        | false           | 잔고(balance) 기반       | ✅ 적용 |
+| `open_short`  | SELL       | false           | 잔고(balance) 기반       | ✅ 적용 |
+| `close_long`  | SELL       | **true** (강제) | 포지션(positionAmt) 기반 | ❌ 무시 |
+| `close_short` | BUY        | **true** (강제) | 포지션(positionAmt) 기반 | ❌ 무시 |
+| `close_all`   | SELL/BUY\* | **true** (강제) | 포지션 전량(100%)        | ❌ 무시 |
 
 \* `close_all`의 side는 현재 포지션 방향에 따라 자동 결정 (LONG→SELL, SHORT→BUY)
 
@@ -588,16 +683,19 @@ close_* 액션:
 #### 5.6.1 수량 계산 공식
 
 **Open 액션 (open_long, open_short)**
+
 ```
 quantity = (balance × leverage × percent / 100) / currentPrice
 ```
 
 **Close 액션 (close_long, close_short)**
+
 ```
 quantity = |positionAmt| × (percent / 100)
 ```
 
 **Close All 액션**
+
 ```
 quantity = |positionAmt|  // 무조건 100%
 qty 필드 무시
@@ -612,17 +710,19 @@ GET /fapi/v3/positionRisk
 ```
 
 **Response 주요 필드:**
+
 ```ts
 interface PositionInfo {
-  symbol: string;           // 심볼 (e.g., "BTCUSDT")
-  positionAmt: string;      // 포지션 수량 (양수=LONG, 음수=SHORT)
-  entryPrice: string;       // 평균 진입가
+  symbol: string; // 심볼 (e.g., "BTCUSDT")
+  positionAmt: string; // 포지션 수량 (양수=LONG, 음수=SHORT)
+  entryPrice: string; // 평균 진입가
   unRealizedProfit: string; // 미실현 손익
-  positionSide: 'BOTH' | 'LONG' | 'SHORT';
+  positionSide: "BOTH" | "LONG" | "SHORT";
 }
 ```
 
 **positionAmt 해석:**
+
 - `positionAmt > 0`: LONG 포지션 → close 시 SELL
 - `positionAmt < 0`: SHORT 포지션 → close 시 BUY
 - `positionAmt = 0`: 포지션 없음 → close 불가 (에러 반환)
@@ -630,6 +730,7 @@ interface PositionInfo {
 #### 5.6.3 Close Action Payload 예시
 
 **close_long (50% 부분 청산)**
+
 ```json
 {
   "exchange": "binance",
@@ -644,6 +745,7 @@ interface PositionInfo {
 ```
 
 **close_all (전량 청산)**
+
 ```json
 {
   "exchange": "binance",
@@ -661,26 +763,29 @@ interface PositionInfo {
 
 #### 5.6.4 Close Action 에러 케이스
 
-| 상황 | 에러 코드 | 메시지 |
-|-----|---------|--------|
-| 포지션 없음 | `POSITION_NOT_FOUND` | No open position for {symbol} |
+| 상황               | 에러 코드                     | 메시지                                       |
+| ------------------ | ----------------------------- | -------------------------------------------- |
+| 포지션 없음        | `POSITION_NOT_FOUND`          | No open position for {symbol}                |
 | 포지션 방향 불일치 | `POSITION_DIRECTION_MISMATCH` | Cannot close_long: current position is SHORT |
-| 수량 계산 실패 | `QUANTITY_CALCULATION_FAILED` | Failed to calculate close quantity |
+| 수량 계산 실패     | `QUANTITY_CALCULATION_FAILED` | Failed to calculate close quantity           |
 
 ### 5.4 Internal Execution API (Lambda 전용)
 
 > [!WARNING]
 > **내부 전용 엔드포인트**
 > 이 API는 Lambda function 전용이며 외부에 노출되면 안 됩니다.
+>
 > - VPC 내부 전용 또는 IAM 인증 필수
 > - API Gateway에서 제외하거나 IAM Authorizer 적용
 > - Lambda execution role만 호출 가능
 
 #### POST /webhook/execute
+
 - Auth: IAM (Lambda execution role)
 - **외부 노출 금지**
 
 **Request**
+
 ```json
 {
   "job_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -715,6 +820,7 @@ interface PositionInfo {
 ```
 
 **처리 흐름**
+
 1. Processing lock 획득 시도 (user_id + signal_id)
 2. Lock 획득 실패 시:
    - `expires_at < now()` → Override update로 Lock 회수 후 진행
@@ -728,6 +834,7 @@ interface PositionInfo {
    - webhook_requests.status = DONE/FAIL/PARTIAL_FAIL 업데이트
 
 **✅ Response 200 - Success**
+
 ```json
 {
   "ok": true,
@@ -749,6 +856,7 @@ interface PositionInfo {
 ```
 
 **✅ Response 200 - Partial Fail**
+
 ```json
 {
   "ok": true,
@@ -765,6 +873,7 @@ interface PositionInfo {
 ```
 
 **❌ 409 - Lock conflict**
+
 ```json
 {
   "ok": false,
@@ -776,6 +885,7 @@ interface PositionInfo {
 ```
 
 **❌ 500 - Execution failed**
+
 ```json
 {
   "ok": false,
@@ -794,10 +904,12 @@ interface PositionInfo {
 ### 6.1 Queue 구조
 
 **Common-API Queue (기존)**
+
 - 목적: 범용 job queue
 - 처리: Worker가 long polling으로 조회
 
 **Webhook Event Queue (신규)**
+
 - 목적: Event-driven Lambda trigger 전용
 - 처리: SQS event source mapping으로 Lambda 자동 실행
 - Message Group ID: `user_id` (FIFO 순서 보장)
@@ -830,12 +942,15 @@ TradingView → Receiver → job_service → Webhook Event SQS
 ## 7. Execution Status API (Webhook 요청 상태)
 
 ### 6.1 Webhook 요청 상태 조회 (signal_id 기준)
+
 운영/유저 디버깅에 매우 유용
 
 #### GET /requests/:signal_id
+
 - Auth: Bearer
 
 **Response 200**
+
 ```json
 {
   "ok": true,
@@ -852,12 +967,14 @@ TradingView → Receiver → job_service → Webhook Event SQS
 ```
 
 ## 7. Admin / Ops API (운영용 — 필수)
+
 SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 무손실 보장 마무리
 
 ### 7.1 Recovery Re-Enqueue (RECEIVED → QUEUED)
 
 > [!NOTE]
 > **Re-Enqueue와 DLQ Replay의 차이**
+>
 > - **Re-Enqueue**: Receiver가 메시지를 받았지만(RECEIVED) SQS에 넣지 못한 경우 복구
 >   - DB에는 기록되었지만 큐에 없는 상태
 >   - 원인: SQS 일시 장애, 네트워크 오류 등
@@ -866,9 +983,11 @@ SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 
 >   - DLQ에 쌓인 실패 메시지를 수동으로 재시도
 
 #### POST /admin/recovery/re-enqueue
+
 - Auth: Admin Bearer (Role required)
 
 **Request**
+
 ```json
 {
   "max_items": 100
@@ -876,11 +995,13 @@ SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 
 ```
 
 **Behavior**
+
 - webhook_requests.status=RECEIVED AND created_at < now()-60s 인 것들을 조회
 - SQS enqueue 재시도
 - 성공 시 status=QUEUED 업데이트
 
 **Response 200**
+
 ```json
 {
   "ok": true,
@@ -893,9 +1014,11 @@ SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 
 ### 7.2 DLQ 메시지 재처리 (Manual)
 
 #### POST /admin/dlq/replay
+
 - Auth: Admin Bearer
 
 **Request**
+
 ```json
 {
   "signal_id": "123"
@@ -903,10 +1026,12 @@ SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 
 ```
 
 **Behavior**
+
 - DLQ에서 signal_id 매칭되는 메시지를 찾아 원큐로 재전송(또는 worker 직접 실행)
 - 재처리 전 lock / status 체크 필수
 
 **Response 200**
+
 ```json
 {
   "ok": true,
@@ -918,15 +1043,18 @@ SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 
 
 > [!CAUTION]
 > **이 엔드포인트의 필요성 재검토**
+>
 > - TTL (expires_at) 기반 자동 해제가 정상 동작하면 불필요
 > - 수동 해제는 데이터 일관성 위험 (실제로 처리 중인 worker가 있을 수 있음)
 > - **권장**: TTL을 3분으로 설정하고 자동 해제에만 의존
 > - 긴급 상황에서만 사용하거나, 충분한 테스트 후 도입 여부 결정
 
 #### POST /admin/locks/force-release (Optional)
+
 - Auth: Admin Bearer
 
 **Request**
+
 ```json
 {
   "user_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -935,6 +1063,7 @@ SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 
 ```
 
 **Response 200**
+
 ```json
 {
   "ok": true,
@@ -945,6 +1074,7 @@ SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 
 ## 8. 핵심 스펙 디테일 (2% 채우기 3종 세트) ✅✅✅
 
 ### 8.1 processing_locks TTL (Dead Lock 방지)
+
 - **expires_at = now() + 3 min** (가격 변동이 심한 암호화폐 특성상 3분이면 충분)
 - insert conflict 시
   - expires_at < now() → override update로 회수
@@ -955,9 +1085,11 @@ SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 
 > 3분 TTL로 설정하면 Dead Lock 복구가 더 빠르고, 오래된 시세 기준 주문을 방지할 수 있습니다.
 
 ### 8.2 Binance clientOrderId Deterministic 규칙
+
 `{PROJECT}_U{userId}_SIG{signalId}_{TYPE}`
 
 **예)**
+
 ```
 WH_U1_SIG123_ENTRY
 WH_U1_SIG123_TP
@@ -967,15 +1099,19 @@ WH_U1_SIG123_SL
 ✅ Worker 재실행되어도 항상 동일한 값 생성
 
 ### 8.3 Spot OCO stopLimitPrice 보정(시장가처럼 동작)
+
 - Spot은 STOP_MARKET이 없고 STOP_LIMIT 기반이라 stopLimitPrice를 stopPrice와 같게 두면 급락/급등 시 미체결 위험.
 
 **Sell OCO (롱 청산)**
+
 - stopLimitPrice = stopPrice × (1 - buffer)
 
 **Buy OCO (숏 커버)**
+
 - stopLimitPrice = stopPrice × (1 + buffer)
 
 **buffer 기본값**
+
 - 1% 기본
 - 0.5% ~ 2% 옵션 가능
 
@@ -986,6 +1122,7 @@ WH_U1_SIG123_SL
 #### GET /health
 
 **Response 200**
+
 ```json
 {
   "ok": true,
@@ -1000,21 +1137,25 @@ WH_U1_SIG123_SL
 ## 10. Definition of Done (API 포함 최종)
 
 **✅ Receiver**
+
 - /webhook/:provider/:auth_token이 0.5초 내 응답? → **예, Receiver는 오직 검증+DB insert+enqueue만 수행하므로 빠른 응답 보장**
 - 중복 signal_id는 200 already_processed? → **예, 멱등성 보장**
 - enqueue 실패 시 500? → **예, ENQUEUE_FAILED 에러 코드 반환**
 - provider 미지원/오타는 404 또는 400 처리? → **404 PROVIDER_NOT_FOUND 처리**
 
 **✅ Worker**
+
 - processing_locks TTL + override 동작? → **예, expires_at 3분 설정 + TTL 초과 시 자동 override**
-- clientOrderId deterministic? → **예, {PROJECT}_U{userId}_SIG{signalId}_{TYPE} 규칙 준수**
+- clientOrderId deterministic? → **예, {PROJECT}_U{userId}\_SIG{signalId}_{TYPE} 규칙 준수**
 - Exit 실패는 PARTIAL_FAIL + 알림 + 내부 1회 재시도? → **예, Entry 성공 + Exit 실패 시 PARTIAL_FAIL 상태 + Discord/Slack 알림 + 재시도 로직 포함**
 
 **✅ Admin Ops**
+
 - re-enqueue endpoint 존재? → **예, RECEIVED 상태가 오래된 항목을 SQS로 복구**
 - DLQ replay endpoint 존재? → **예, DLQ에 쌓인 실패 메시지를 수동 재처리 (재시도 횟수 초과한 건)**
 - lock force-release endpoint 존재? → **선택사항, TTL 자동 해제가 정상 동작하면 불필요하므로 초기에는 구현하지 않음**
 
 **✅ Logs**
+
 - /logs paging/filter 가능? → **예, page/limit + status/ticker/market/provider/date 필터 지원**
 - /logs/:id 상세 조회 가능? → **예, request_json/entry_json/exit_json/error_json 포함 상세 정보 제공**
