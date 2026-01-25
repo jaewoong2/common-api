@@ -3,7 +3,9 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Build deps for native modules
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ || \
+    (sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories && \
+     apk add --no-cache python3 make g++)
 
 COPY package*.json ./
 RUN npm ci
@@ -34,7 +36,9 @@ WORKDIR /usr/src/app
 # NODE_ENV will be set via ECS task definition environment variables
 
 # Build deps for native modules
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ || \
+    (sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories && \
+     apk add --no-cache python3 make g++)
 
 COPY package*.json ./
 RUN npm ci --omit=dev
