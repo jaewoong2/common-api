@@ -189,6 +189,10 @@ export class ExchangeKeyService {
 
       const credentials = { accessKey, secretKey };
 
+      if (entity.exchange === "discord") {
+        return this.verifyDiscordWebhook(keyId, accessKey);
+      }
+
       // Dynamic import to avoid circular dependency
       const { BinanceApiClient } =
         await import("../webhook/adapters/binance/binance-api.client");
@@ -227,6 +231,43 @@ export class ExchangeKeyService {
         permissions: null,
         verifiedAt: new Date().toISOString(),
         errorMessage: error.message || "API key validation failed",
+      };
+    }
+  }
+
+  private async verifyDiscordWebhook(keyId: string, webhookUrl: string) {
+    try {
+      const axios = (await import("axios")).default;
+      await axios.post(webhookUrl, {
+        content:
+          "✅ **Webhook Verification**: Your Discord Webhook is connected successfully!",
+      });
+
+      this.logger.log(`Discord Webhook verified successfully: keyId=${keyId}`);
+
+      return {
+        keyId,
+        valid: true,
+        permissions: {
+          futuresTrading: false,
+          spotTrading: false,
+          marginTrading: false,
+          withdraw: false,
+        },
+        verifiedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Discord Webhook verification failed: keyId=${keyId}`,
+        error.message,
+      );
+
+      return {
+        keyId,
+        valid: false,
+        permissions: null,
+        verifiedAt: new Date().toISOString(),
+        errorMessage: error.message || "Invalid Discord Webhook URL",
       };
     }
   }

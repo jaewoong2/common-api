@@ -1818,6 +1818,14 @@ Content-Type: application/json
   "accessKey": "YOUR_BINANCE_API_KEY",
   "secretKey": "YOUR_BINANCE_SECRET_KEY"
 }
+
+# 또는 Discord의 경우
+{
+  "exchange": "discord",
+  "label": "My Alerts",
+  "accessKey": "https://discord.com/api/webhooks/...",
+  "secretKey": "none"
+}
 ```
 
 ### 3. Webhook URL 확인

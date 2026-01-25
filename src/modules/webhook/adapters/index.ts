@@ -8,3 +8,4 @@ export {
 export { ProviderAdapterRegistry } from "./provider-adapter.registry";
 export { PROVIDER_ADAPTERS } from "./provider-adapters.token";
 export { BinanceAdapter, BinanceApiClient } from "./binance";
+export { DiscordAdapter } from "./discord/discord.adapter";

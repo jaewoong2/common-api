@@ -34,7 +34,7 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
   "ok": true,
 
   "data": {},
-    "meta": { "trace_id": "..." },
+  "meta": { "trace_id": "..." },
   "request_id": "req-xyz",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
@@ -47,11 +47,11 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
   "ok": false,
 
   "error": {
-      "code": "VALIDATION_ERROR",
-      "message": "qty.value must be positive",
-      "details": {}
-    },
-    "meta": { "trace_id": "..." },
+    "code": "VALIDATION_ERROR",
+    "message": "qty.value must be positive",
+    "details": {}
+  },
+  "meta": { "trace_id": "..." },
   "request_id": "req-xyz",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
@@ -88,11 +88,11 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
   "ok": true,
 
   "data": {
-      "user_id": "550e8400-e29b-41d4-a716-446655440000",
-      "email": "test@a.com",
-      "auth_token": "a3c1...uuid",
-      "created_at": "2026-01-19T10:00:00Z"
-    },
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "test@a.com",
+    "auth_token": "a3c1...uuid",
+    "created_at": "2026-01-19T10:00:00Z"
+  },
   "request_id": "req-user-me",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
@@ -113,8 +113,8 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
   "ok": true,
 
   "data": {
-      "webhook_url": "https://api.service.com/v1/webhook/binance/a3c1...uuid"
-    },
+    "webhook_url": "https://api.service.com/v1/webhook/binance/a3c1...uuid"
+  },
   "request_id": "req-webhook-url",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
@@ -154,10 +154,10 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 
 ```json
 {
-  "exchange": "binance",
+  "exchange": "binance", // or "discord"
   "label": "main",
-  "access_key": "AK...",
-  "secret_key": "SK..."
+  "access_key": "AK... (or Webhook URL for Discord)",
+  "secret_key": "SK... (or 'none' for Discord)"
 }
 ```
 
@@ -177,8 +177,8 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
   "ok": true,
 
   "data": {
-      "key_id": 10
-    },
+    "key_id": 10
+  },
   "request_id": "req-create-key",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
@@ -202,14 +202,14 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
   "ok": true,
 
   "data": [
-      {
-        "key_id": 10,
-        "exchange": "binance",
-        "label": "main",
-        "access_key_masked": "AK***1234",
-        "created_at": "2026-01-19T10:00:00Z"
-      }
-    ],
+    {
+      "key_id": 10,
+      "exchange": "binance",
+      "label": "main",
+      "access_key_masked": "AK***1234",
+      "created_at": "2026-01-19T10:00:00Z"
+    }
+  ],
   "request_id": "req-list-keys",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
@@ -476,6 +476,7 @@ Webhook Controller → Use Case → Provider Adapter Registry → Concrete Adapt
                                                     BinanceAdapter
                                                     HantooAdapter
                                                     UpbitAdapter
+                                                    DiscordAdapter
 ```
 
 **1) Adapter 인터페이스 정의**

@@ -624,10 +624,10 @@ Content-Type: application/json
 
 **필드 설명:**
 
-- `exchange`: 거래소 이름 (binance, upbit 등)
+- `exchange`: 거래소 이름 (binance, upbit, discord 등)
 - `label`: 사용자 정의 라벨 (내 계좌, 테스트 계좌 등)
-- `access_key`: API Access Key
-- `secret_key`: API Secret Key (AWS KMS로 암호화 저장)
+- `access_key`: API Access Key (Discord의 경우 Webhook URL 전체)
+- `secret_key`: API Secret Key (Discord의 경우 임의의 문자열 입력, 예: "none")
 
 **Response 201**
 

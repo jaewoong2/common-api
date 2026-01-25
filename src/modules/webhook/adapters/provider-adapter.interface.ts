@@ -62,6 +62,7 @@ export interface ProviderRequest {
   clientOrderId: string;
   positionMode?: PositionMode;
   reduceOnly?: boolean;
+  metadata?: Record<string, any>;
 }
 
 /**

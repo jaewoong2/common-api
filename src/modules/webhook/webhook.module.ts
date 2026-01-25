@@ -27,6 +27,7 @@ import {
   ProviderAdapterRegistry,
   BinanceAdapter,
   BinanceApiClient,
+  DiscordAdapter,
 } from "./adapters";
 import { PROVIDER_ADAPTERS } from "./adapters/provider-adapters.token";
 import { UserModule } from "../user/user.module";
@@ -70,11 +71,15 @@ import { AuthModule } from "../auth/auth.module";
     // Adapters (개별 등록)
     BinanceAdapter,
     BinanceApiClient,
+    DiscordAdapter,
     // DI Token Factory: 새 adapter 추가 시 여기만 수정
     {
       provide: PROVIDER_ADAPTERS,
-      useFactory: (binanceAdapter: BinanceAdapter) => [binanceAdapter],
-      inject: [BinanceAdapter],
+      useFactory: (
+        binanceAdapter: BinanceAdapter,
+        discordAdapter: DiscordAdapter,
+      ) => [binanceAdapter, discordAdapter],
+      inject: [BinanceAdapter, DiscordAdapter],
     },
     ProviderAdapterRegistry,
   ],
