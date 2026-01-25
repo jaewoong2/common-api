@@ -1,7 +1,7 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
-import { AWS_SES_CLIENT } from '../aws/aws-clients.module';
+import { AWS_SES_CLIENT } from "../aws/aws-clients.module";
 
 /**
  * Email Service
@@ -33,11 +33,11 @@ export class EmailService {
   async sendMagicLinkEmail(
     to: string,
     code: string,
-    redirectUrl?: string
+    redirectUrl?: string,
   ): Promise<void> {
     const magicLink = redirectUrl
-      ? `${redirectUrl}?verificationCode=${code}`
-      : `https://biizbiiz.com/auth/verify?verificationCode=${code}`;
+      ? `${redirectUrl}?code=${code}`
+      : `https://biizbiiz.com/auth/verify?code=${code}`;
 
     const htmlBody = this.buildHtmlTemplate(magicLink, code);
 
