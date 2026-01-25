@@ -26,6 +26,7 @@ import { ExchangeKeysModule } from "./modules/exchange-keys";
 import { WebhookModule } from "./modules/webhook";
 import { TradeLogsModule } from "./modules/trade-logs";
 import { WebhookBuilderModule } from "./modules/webhook-builder";
+import { DashboardModule } from "./modules/dashboard";
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { WebhookBuilderModule } from "./modules/webhook-builder";
     WebhookModule,
     TradeLogsModule,
     WebhookBuilderModule,
+    DashboardModule,
   ],
   providers: [
     {

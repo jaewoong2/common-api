@@ -149,4 +149,85 @@ export class ExchangeKeyService {
 
     return { accessKey, secretKey };
   }
+
+  /**
+   * API 키 검증 (거래소 API 호출로 유효성 확인)
+   * @param userId - 사용자 ID
+   * @param keyId - 키 ID
+   * @returns 검증 결과
+   */
+  async verifyKey(
+    userId: string,
+    keyId: string,
+  ): Promise<{
+    keyId: string;
+    valid: boolean;
+    permissions: {
+      spotTrading?: boolean;
+      futuresTrading?: boolean;
+      marginTrading?: boolean;
+      withdraw?: boolean;
+    } | null;
+    verifiedAt: string;
+    errorMessage?: string;
+  }> {
+    const entity = await this.repository.findByIdAndUserId(keyId, userId);
+    if (!entity) {
+      throw new NotFoundException(`Key ${keyId} not found`);
+    }
+
+    try {
+      // Decrypt credentials
+      const accessKey = await this.kmsService.decrypt(
+        entity.accessKeyEnc,
+        entity.kmsDataKeyId,
+      );
+      const secretKey = await this.kmsService.decrypt(
+        entity.secretKeyEnc,
+        entity.kmsDataKeyId,
+      );
+
+      const credentials = { accessKey, secretKey };
+
+      // Dynamic import to avoid circular dependency
+      const { BinanceApiClient } =
+        await import("../webhook/adapters/binance/binance-api.client");
+      const { ConfigService } = await import("@nestjs/config");
+
+      // Create a temporary client for verification
+      // Note: In production, inject BinanceApiClient properly
+      const tempClient = new BinanceApiClient(new ConfigService());
+
+      // Try to fetch balance to verify credentials work
+      const balances = await tempClient.getBalance(credentials, "futures_um");
+
+      // If we got here, the key is valid
+      this.logger.log(`API key verified successfully: keyId=${keyId}`);
+
+      return {
+        keyId,
+        valid: true,
+        permissions: {
+          futuresTrading: true, // Verified by successful balance call
+          spotTrading: undefined, // Would need a separate check
+          marginTrading: undefined,
+          withdraw: false, // Assumed false for safety
+        },
+        verifiedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      this.logger.warn(
+        `API key verification failed: keyId=${keyId}`,
+        error.message,
+      );
+
+      return {
+        keyId,
+        valid: false,
+        permissions: null,
+        verifiedAt: new Date().toISOString(),
+        errorMessage: error.message || "API key validation failed",
+      };
+    }
+  }
 }

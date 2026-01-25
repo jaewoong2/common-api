@@ -401,17 +401,36 @@ export class BinanceAdapter implements ProviderAdapter {
         reduceOnly: request.reduceOnly,
       });
 
+      const entryJson = {
+        orderId: entryOrder.orderId.toString(),
+        symbol: entryOrder.symbol,
+        side: entryOrder.side,
+        quantity: entryOrder.origQty,
+        price: "0",
+        clientOrderId: entryOrder.clientOrderId,
+      };
+
+      // Price extraction logic: avgPrice > price (limit) > 0
+      const avgPrice = parseFloat(entryOrder.avgPrice || "0");
+      const limitPrice = parseFloat((entryOrder as any).price || "0");
+
+      if (avgPrice > 0) {
+        entryJson.price = entryOrder.avgPrice;
+      } else if (limitPrice > 0) {
+        entryJson.price = (entryOrder as any).price;
+      } else {
+        // Try to calculate from cumQuote/executedQty if available (Futures specific)
+        const cumQuote = parseFloat((entryOrder as any).cumQuote || "0");
+        const executedQty = parseFloat((entryOrder as any).executedQty || "0");
+        if (cumQuote > 0 && executedQty > 0) {
+          entryJson.price = (cumQuote / executedQty).toString();
+        }
+      }
+
       const result: ExecutionResult = {
         success: true,
         status: "SUCCESS",
-        entryJson: {
-          orderId: entryOrder.orderId.toString(),
-          symbol: entryOrder.symbol,
-          side: entryOrder.side,
-          quantity: entryOrder.origQty,
-          price: entryOrder.avgPrice || (entryOrder as any).price || "0",
-          clientOrderId: entryOrder.clientOrderId,
-        },
+        entryJson,
       };
 
       // 3. Place TP/SL orders if specified

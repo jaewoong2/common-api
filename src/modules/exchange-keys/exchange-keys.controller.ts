@@ -108,4 +108,40 @@ export class ExchangeKeysController {
       data: {},
     };
   }
+
+  /**
+   * POST /users/keys/:key_id/verify - API 키 검증
+   */
+  @Post(":key_id/verify")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "거래소 API 키 검증" })
+  @ApiResponse({
+    status: 200,
+    description: "검증 결과",
+    schema: {
+      example: {
+        ok: true,
+        data: {
+          key_id: "uuid-123",
+          valid: true,
+          permissions: {
+            futures_trading: true,
+            spot_trading: null,
+          },
+          verified_at: "2026-01-25T10:00:00Z",
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: "KEY_NOT_FOUND" })
+  async verifyKey(
+    @CurrentUser("id") userId: string,
+    @Param("key_id") keyId: string,
+  ) {
+    const result = await this.service.verifyKey(userId, keyId);
+    return {
+      ok: true,
+      data: result,
+    };
+  }
 }

@@ -39,21 +39,33 @@ export class TradeLogDto {
   @Expose()
   status: string;
 
+  @ApiProperty({ example: "42150.50", description: "진입 가격" })
+  @Expose()
+  entryPrice: string | null;
+
+  @ApiProperty({ example: "100", description: "주문 수량" })
+  @Expose()
+  quantity: string | null;
+
   @ApiProperty({ example: "2026-01-20T10:00:00.000Z" })
   @Expose()
   createdAt: string;
 
   // 상세 조회 시에만 포함
   @ApiProperty({ required: false })
+  @Expose()
   entryJson?: unknown;
 
   @ApiProperty({ required: false })
+  @Expose()
   exitJson?: unknown;
 
   @ApiProperty({ required: false })
+  @Expose()
   errorJson?: unknown;
 
   @ApiProperty({ required: false })
+  @Expose()
   requestJson?: unknown;
 
   /**
@@ -73,6 +85,11 @@ export class TradeLogDto {
     dto.action = entity.action;
     dto.status = entity.status;
     dto.createdAt = entity.createdAt.toISOString();
+
+    // Extract entryPrice and quantity from entryJson
+    const entryData = entity.entryJson as Record<string, unknown> | null;
+    dto.entryPrice = entryData?.price?.toString() ?? null;
+    dto.quantity = entryData?.quantity?.toString() ?? null;
 
     if (includeDetails) {
       dto.entryJson = entity.entryJson;

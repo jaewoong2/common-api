@@ -44,6 +44,9 @@ export interface PositionInfo {
  */
 export interface ExchangeInfo {
   symbol: string;
+  status: string;
+  baseAsset: string;
+  quoteAsset: string;
   pricePrecision: number;
   quantityPrecision: number;
   filters: {
@@ -159,6 +162,35 @@ export class BinanceApiClient {
         `Failed to get exchange info for ${symbol}: ${error.message}`,
       );
       return null; // 실패 시 null 반환 (기본 정밀도 사용)
+    }
+  }
+
+  /**
+   * Get All Public Symbols
+   * @description 전체 심볼 목록 조회
+   */
+  async getPublicSymbols(
+    market: "futures_um" | "spot" = "futures_um",
+  ): Promise<ExchangeInfo[]> {
+    try {
+      const endpoint =
+        market === "spot" ? "/api/v3/exchangeInfo" : "/fapi/v1/exchangeInfo";
+      const baseUrl = this.getBaseUrl(market);
+
+      const response = await axios.get(`${baseUrl}${endpoint}`, {
+        timeout: 10000, // 데이터가 많으므로 타임아웃 넉넉히
+      });
+
+      if (response.data && response.data.symbols) {
+        return response.data.symbols as ExchangeInfo[];
+      }
+
+      return [];
+    } catch (error) {
+      this.logger.error(
+        `Failed to get public symbols for ${market}: ${error.message}`,
+      );
+      return [];
     }
   }
 

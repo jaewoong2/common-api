@@ -84,6 +84,7 @@ import { AuthModule } from "../auth/auth.module";
     WebhookRequestRepository,
     ProcessingLockRepository,
     ProviderAdapterRegistry,
+    BinanceApiClient,
   ],
 })
 export class WebhookModule {}

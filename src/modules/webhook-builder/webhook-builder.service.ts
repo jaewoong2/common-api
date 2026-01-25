@@ -1,4 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { BinanceApiClient } from "../webhook/adapters/binance/binance-api.client";
 import { WebhookAction, MarketType } from "../../common/enums";
 import {
   WebhookBuilderOptionsDto,
@@ -16,6 +18,43 @@ import {
  */
 @Injectable()
 export class WebhookBuilderService {
+  private readonly logger = new Logger(WebhookBuilderService.name);
+
+  constructor(
+    private readonly binanceApiClient: BinanceApiClient,
+    private readonly configService: ConfigService,
+  ) {}
+
+  /**
+   * 거래소 티커(심볼) 목록 조회
+   */
+  async getTickers(
+    exchange: string = "binance",
+    market: "spot" | "futures_um" | "futures_cm" = "futures_um",
+  ): Promise<string[]> {
+    if (exchange !== "binance") {
+      return [];
+    }
+
+    try {
+      // futures_um or spot (currently supported by adapter)
+      const targetMarket = market === "spot" ? "spot" : "futures_um";
+      const symbols =
+        await this.binanceApiClient.getPublicSymbols(targetMarket);
+
+      // Filter for TRADING status and map to symbol string
+      return symbols
+        .filter((s) => s.status === "TRADING")
+        .map((s) => s.symbol)
+        .sort();
+    } catch (error) {
+      this.logger.error(
+        `Failed to get tickers for ${exchange}/${market}: ${error.message}`,
+      );
+      return [];
+    }
+  }
+
   /**
    * 프론트엔드 Select 옵션 조회
    */
@@ -27,7 +66,7 @@ export class WebhookBuilderService {
     const markets: SelectOptionDto[] = [
       { value: MarketType.SPOT, label: "Spot" },
       { value: MarketType.FUTURES_UM, label: "Futures USDT-M" },
-      { value: MarketType.FUTURES_CM, label: "Futures Coin-M" },
+      // { value: MarketType.FUTURES_CM, label: "Futures Coin-M" }, // Not fully supported yet
     ];
 
     const actions: SelectOptionDto[] = [
@@ -115,6 +154,191 @@ export class WebhookBuilderService {
       message: JSON.stringify(cleanedPayload, null, 2),
       formatted: cleanedPayload,
     };
+  }
+
+  /**
+   * Webhook 페이로드 JSON 스키마 조회
+   */
+  getSchema(): Record<string, unknown> {
+    return {
+      type: "object",
+      required: ["exchange", "market", "ticker", "action", "qty"],
+      properties: {
+        exchange: {
+          type: "string",
+          enum: ["binance"],
+          description: "거래소 이름",
+        },
+        market: {
+          type: "string",
+          enum: ["spot", "futures_um", "futures_cm"],
+          description: "마켓 타입",
+        },
+        ticker: {
+          type: "string",
+          pattern: "^[A-Z]{2,10}(USDT|USDC)$",
+          description: "심볼 (예: BTCUSDT)",
+        },
+        action: {
+          type: "string",
+          enum: [
+            "open_long",
+            "open_short",
+            "close_long",
+            "close_short",
+            "close_all",
+          ],
+          description: "액션",
+        },
+        entry: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["market", "limit"] },
+            price: { type: "number", description: "지정가 (limit 주문 시)" },
+          },
+        },
+        qty: {
+          type: "object",
+          required: ["type", "value"],
+          properties: {
+            type: { type: "string", enum: ["percent", "fixed"] },
+            value: { type: "number" },
+          },
+        },
+        quote_asset: {
+          type: "string",
+          enum: ["USDT", "USDC"],
+          default: "USDT",
+        },
+        strategy: {
+          type: "object",
+          properties: {
+            stop_loss: {
+              type: "object",
+              properties: {
+                type: { type: "string", enum: ["percent", "price"] },
+                value: { type: "number" },
+                qty_percent: { type: "number" },
+              },
+            },
+            take_profit: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  type: { type: "string", enum: ["percent", "price"] },
+                  value: { type: "number" },
+                  qty_percent: { type: "number" },
+                },
+              },
+            },
+          },
+        },
+        options: {
+          type: "object",
+          properties: {
+            signal_id: {
+              type: "string",
+              description: "TradingView {{timenow}}",
+            },
+            leverage: { type: "integer", minimum: 1, maximum: 125 },
+            position_mode: { type: "string", enum: ["ONE_WAY", "HEDGE"] },
+            reduce_only: { type: "boolean" },
+          },
+        },
+      },
+    };
+  }
+
+  /**
+   * 예제 페이로드 템플릿 조회
+   */
+  getTemplates(): {
+    name: string;
+    description: string;
+    payload: Record<string, unknown>;
+  }[] {
+    return [
+      {
+        name: "Open Long (시장가)",
+        description: "시장가로 롱 포지션 진입, 10x 레버리지, 잔고 50%",
+        payload: {
+          exchange: "binance",
+          market: "futures_um",
+          ticker: "BTCUSDT",
+          action: "open_long",
+          entry: { type: "market" },
+          qty: { type: "percent", value: 50 },
+          options: {
+            signal_id: "{{timenow}}",
+            leverage: 10,
+          },
+        },
+      },
+      {
+        name: "Open Long with TP/SL",
+        description: "롱 진입 + 손절 2% / 익절 5%",
+        payload: {
+          exchange: "binance",
+          market: "futures_um",
+          ticker: "ETHUSDT",
+          action: "open_long",
+          entry: { type: "market" },
+          qty: { type: "percent", value: 30 },
+          strategy: {
+            stop_loss: { type: "percent", value: 2 },
+            take_profit: [{ type: "percent", value: 5, qty_percent: 100 }],
+          },
+          options: {
+            signal_id: "{{timenow}}",
+            leverage: 5,
+          },
+        },
+      },
+      {
+        name: "Close Long (전체 청산)",
+        description: "롱 포지션 100% 청산",
+        payload: {
+          exchange: "binance",
+          market: "futures_um",
+          ticker: "BTCUSDT",
+          action: "close_long",
+          qty: { type: "percent", value: 100 },
+          options: {
+            signal_id: "{{timenow}}",
+          },
+        },
+      },
+      {
+        name: "Open Short (지정가)",
+        description: "지정가로 숏 포지션 진입",
+        payload: {
+          exchange: "binance",
+          market: "futures_um",
+          ticker: "XRPUSDT",
+          action: "open_short",
+          entry: { type: "limit", price: 2.5 },
+          qty: { type: "fixed", value: 1000 },
+          options: {
+            signal_id: "{{timenow}}",
+            leverage: 20,
+          },
+        },
+      },
+      {
+        name: "Close All",
+        description: "모든 포지션 청산",
+        payload: {
+          exchange: "binance",
+          market: "futures_um",
+          ticker: "BTCUSDT",
+          action: "close_all",
+          options: {
+            signal_id: "{{timenow}}",
+          },
+        },
+      },
+    ];
   }
 
   /**

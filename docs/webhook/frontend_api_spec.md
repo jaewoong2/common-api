@@ -802,7 +802,7 @@ GET /logs?page=1&limit=20&status=SUCCESS&ticker=BTCUSDT&from=2026-01-01T00:00:00
         "ticker": "BTCUSDT",
         "action": "open_long",
         "status": "SUCCESS",
-        "entry_price": "50000.00",
+        "entryPrice": "50000.00",
         "quantity": "0.1",
         "created_at": "2026-01-22T10:00:00Z"
       }
@@ -842,7 +842,7 @@ Authorization: Bearer <token>
     "ticker": "BTCUSDT",
     "action": "open_long",
     "status": "SUCCESS",
-    "request_json": {
+    "requestJson": {
       "ticker": "BTCUSDT",
       "action": "open_long",
       "qty": { "type": "percent", "value": 50 },
@@ -1022,6 +1022,10 @@ Authorization: Bearer <token>
 
 프론트엔드 대시보드에 표시할 요약 정보
 
+> [!NOTE]
+> ✅ **구현 완료** (2026-01-25)
+> "Webhook 성공률"은 실제 거래 수익률(Win Rate)이 아닌, Webhook 실행 성공률입니다.
+
 ```http
 GET /dashboard/summary
 Authorization: Bearer <token>
@@ -1033,34 +1037,36 @@ Authorization: Bearer <token>
 {
   "ok": true,
   "data": {
-    "total_trades": 152,
-    "success_rate": 87.5,
-    "total_profit_usdt": "1234.56",
-    "today_trades": 12,
-    "active_positions": 3,
-    "last_24h_pnl": "+234.12",
-    "last_24h_pnl_percent": "+2.34",
-    "webhook_url": "https://api.service.com/v1/webhook/binance/xxx",
-    "connected_exchanges": [
-      {
-        "exchange": "binance",
-        "markets": ["spot", "futures_um"],
-        "key_count": 1,
-        "status": "connected"
-      }
-    ],
-    "recent_trades": [
-      {
-        "log_id": 501,
-        "ticker": "BTCUSDT",
-        "action": "open_long",
-        "status": "SUCCESS",
-        "created_at": "2026-01-22T10:00:00Z"
-      }
-    ]
-  }
+    "totalTrades": 152,
+    "successTrades": 130,
+    "failedTrades": 22,
+    "webhookSuccessRate": 86,
+    "todayTrades": 12,
+    "tradesByAction": {
+      "open_long": 50,
+      "close_long": 40,
+      "open_short": 30,
+      "close_short": 20,
+      "close_all": 12
+    },
+    "activeTickers": ["BTCUSDT", "ETHUSDT", "XRPUSDT"]
+  },
+  "request_id": "req_abc123",
+  "timestamp": "2026-01-25T10:00:00Z"
 }
 ```
+
+**Response Schema**
+
+| 필드                 | 타입                     | 설명                                       |
+| -------------------- | ------------------------ | ------------------------------------------ |
+| `totalTrades`        | number                   | 총 Webhook 실행 수                         |
+| `successTrades`      | number                   | 성공 실행 수                               |
+| `failedTrades`       | number                   | 실패 실행 수                               |
+| `webhookSuccessRate` | number                   | Webhook 성공률 (%) - 실제 거래 수익률 아님 |
+| `todayTrades`        | number                   | 오늘(24시간) 거래 수                       |
+| `tradesByAction`     | `Record<string, number>` | 액션별 거래 수                             |
+| `activeTickers`      | string[]                 | 최근 7일 활성 티커 목록 (최대 10개)        |
 
 ---
 
@@ -1567,7 +1573,178 @@ GET /webhook-builder/options
 
 ---
 
-### 12.2 TradingView 웹훅 메시지 생성
+### 12.2 Webhook 페이로드 JSON 스키마 조회
+
+Webhook 페이로드의 JSON 스키마 정보를 반환합니다.
+
+> [!NOTE]
+> ✅ **구현 완료** (2026-01-25)
+
+```http
+GET /webhook-builder/schema
+```
+
+**Response 200**
+
+```json
+{
+  "ok": true,
+  "data": {
+    "type": "object",
+    "required": ["exchange", "market", "ticker", "action", "qty"],
+    "properties": {
+      "exchange": {
+        "type": "string",
+        "enum": ["binance"],
+        "description": "거래소 이름"
+      },
+      "market": {
+        "type": "string",
+        "enum": ["spot", "futures_um", "futures_cm"],
+        "description": "마켓 타입"
+      },
+      "ticker": {
+        "type": "string",
+        "pattern": "^[A-Z]{2,10}(USDT|USDC)$",
+        "description": "심볼 (예: BTCUSDT)"
+      },
+      "action": {
+        "type": "string",
+        "enum": [
+          "open_long",
+          "open_short",
+          "close_long",
+          "close_short",
+          "close_all"
+        ],
+        "description": "액션"
+      },
+      "qty": {
+        "type": "object",
+        "required": ["type", "value"],
+        "properties": {
+          "type": { "type": "string", "enum": ["percent", "fixed"] },
+          "value": { "type": "number" }
+        }
+      },
+      "options": {
+        "type": "object",
+        "properties": {
+          "signal_id": { "type": "string" },
+          "leverage": { "type": "integer", "minimum": 1, "maximum": 125 },
+          "position_mode": { "type": "string", "enum": ["ONE_WAY", "HEDGE"] }
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
+### 12.3 예제 페이로드 템플릿 조회
+
+다양한 액션별 예제 페이로드 템플릿을 반환합니다.
+
+> [!NOTE]
+> ✅ **구현 완료** (2026-01-25)
+
+```http
+GET /webhook-builder/templates
+```
+
+**Response 200**
+
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "name": "Open Long (시장가)",
+      "description": "시장가로 롱 포지션 진입, 10x 레버리지, 잔고 50%",
+      "payload": {
+        "exchange": "binance",
+        "market": "futures_um",
+        "ticker": "BTCUSDT",
+        "action": "open_long",
+        "entry": { "type": "market" },
+        "qty": { "type": "percent", "value": 50 },
+        "options": { "signal_id": "{{timenow}}", "leverage": 10 }
+      }
+    },
+    {
+      "name": "Open Long with TP/SL",
+      "description": "롱 진입 + 손절 2% / 익절 5%",
+      "payload": {
+        "exchange": "binance",
+        "market": "futures_um",
+        "ticker": "ETHUSDT",
+        "action": "open_long",
+        "entry": { "type": "market" },
+        "qty": { "type": "percent", "value": 30 },
+        "strategy": {
+          "stop_loss": { "type": "percent", "value": 2 },
+          "take_profit": [{ "type": "percent", "value": 5, "qty_percent": 100 }]
+        },
+        "options": { "signal_id": "{{timenow}}", "leverage": 5 }
+      }
+    },
+    {
+      "name": "Close Long (전체 청산)",
+      "description": "롱 포지션 100% 청산",
+      "payload": {
+        "exchange": "binance",
+        "market": "futures_um",
+        "ticker": "BTCUSDT",
+        "action": "close_long",
+        "qty": { "type": "percent", "value": 100 },
+        "options": { "signal_id": "{{timenow}}" }
+      }
+    }
+  ]
+}
+```
+
+**Template Object**
+
+| 필드          | 타입   | 설명                  |
+| ------------- | ------ | --------------------- |
+| `name`        | string | 템플릿 이름           |
+| `description` | string | 템플릿 설명           |
+| `payload`     | object | 실제 Webhook 페이로드 |
+
+---
+
+### 12.4 거래소 티커 목록 조회
+
+거래소/마켓별 거래 가능한 티커(심볼) 목록을 반환합니다. `TRADING` 상태인 종목만 반환됩니다.
+
+> [!NOTE]
+> ✅ **구현 완료** (2026-01-25)
+
+```http
+GET /webhook-builder/tickers?exchange=binance&market=futures_um
+```
+
+**Query Parameters**
+
+| 파라미터   | 타입   | 필수 | 기본값       | 설명                               |
+| ---------- | ------ | ---- | ------------ | ---------------------------------- |
+| `exchange` | string | No   | `binance`    | 거래소                             |
+| `market`   | string | No   | `futures_um` | `spot`, `futures_um`, `futures_cm` |
+
+**Response 200**
+
+```json
+{
+  "ok": true,
+  "data": ["1000SHIBUSDT", "BTCUSDT", "ETHUSDT", "XRPUSDT"]
+}
+```
+
+---
+
+### 12.5 TradingView 웹훅 메시지 생성
 
 선택된 옵션으로 TradingView Alert 메시지를 생성합니다.
 
@@ -1694,6 +1871,33 @@ Content-Type: application/json
 
 ## 📝 변경 이력 (Changelog)
 
+### 2026-01-25
+
+**신규 API 구현**
+
+#### 변경 사항:
+
+1. **Dashboard Summary API 구현**
+   - `GET /dashboard/summary` 엔드포인트 추가
+   - 총 거래수, 성공/실패 거래수, 승률, 총 수익, 활성 티커 반환
+   - 섹션 7.1 문서 업데이트
+
+2. **Logs API 업데이트**
+   - `entryPrice` (camelCase 주의), `quantity` 필드 추가
+   - 프론트엔드 테이블 PRICE/AMOUNT 컬럼 지원
+
+3. **API Key Verification 엔드포인트 구현**
+   - `POST /users/keys/:key_id/verify` 추가
+   - Binance API 호출로 실시간 키 유효성 검증
+   - 권한 정보 및 검증 시각 반환
+
+4. **Webhook Builder API 확장**
+   - `GET /webhook-builder/schema`, `GET /webhook-builder/templates` 추가
+   - `GET /webhook-builder/tickers` 엔드포인트 추가 (티커 검색)
+   - 섹션 12.2, 12.3, 12.4 문서 추가
+
+---
+
 ### 2026-01-24
 
 **응답 구조 업데이트 - ResponseInterceptor 래핑 반영**
@@ -1771,6 +1975,6 @@ const keys = unwrapResponse(response.data);
 
 ---
 
-**문서 버전**: v1.1  
-**최종 수정**: 2026-01-24  
-**다음 업데이트**: 나머지 API 엔드포인트 응답 구조 통일
+**문서 버전**: v1.2  
+**최종 수정**: 2026-01-25  
+**다음 업데이트**: 나머지 API 엔드포인트 구현 및 통합 테스트
