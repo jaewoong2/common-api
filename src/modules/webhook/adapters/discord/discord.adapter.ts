@@ -117,17 +117,21 @@ export class DiscordAdapter implements ProviderAdapter<DiscordPayloadDto> {
     const metadata = request.metadata || {};
     const messageType = metadata.messageType || "trading";
 
+    this.logger.log(
+      `Discord execute: messageType=${messageType}, signalId=${request.signalId}`,
+    );
+
     try {
       let discordPayload: { embeds?: any[]; content?: string };
 
       if (messageType === "embed") {
-        // Direct embed mode: use user-provided embed
+        // Direct embed mode: use user-provided embed directly
         discordPayload = {
           content: metadata.content as string | undefined,
           embeds: metadata.embed ? [metadata.embed] : undefined,
         };
         this.logger.log(
-          `Discord direct embed sent: signalId=${request.signalId}`,
+          `Discord direct embed mode: sending user-provided embed, signalId=${request.signalId}`,
         );
       } else {
         // Trading mode: generate embed from trading data
@@ -139,6 +143,19 @@ export class DiscordAdapter implements ProviderAdapter<DiscordPayloadDto> {
       }
 
       await axios.post(webhookUrl, discordPayload);
+
+      // Return appropriate response based on message type
+      if (messageType === "embed") {
+        return {
+          success: true,
+          status: "SUCCESS",
+          entryJson: {
+            orderId: `discord-${Date.now()}`,
+            messageType: "embed",
+            clientOrderId: request.clientOrderId,
+          },
+        };
+      }
 
       return {
         success: true,

@@ -27,11 +27,12 @@ export interface ExecutionResult {
   status: "SUCCESS" | "FAIL" | "PARTIAL_FAIL";
   entryJson?: {
     orderId: string;
-    symbol: string;
-    side: string;
-    quantity: string;
-    price: string;
-    clientOrderId: string;
+    symbol?: string;
+    side?: string;
+    quantity?: string;
+    price?: string;
+    clientOrderId?: string;
+    messageType?: string; // For non-trading responses (e.g., Discord embed mode)
   };
   exitJson?: {
     tpOrderId?: string;
