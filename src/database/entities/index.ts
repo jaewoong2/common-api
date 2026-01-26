@@ -19,3 +19,4 @@ export { ExchangeKeyEntity } from "./exchange-key.entity";
 export { TradeLogEntity } from "./trade-log.entity";
 export { ProcessingLockEntity } from "./processing-lock.entity";
 export { OAuthProviderEntity } from "./oauth-provider.entity";
+export { SymbolEntity } from "./symbol.entity";

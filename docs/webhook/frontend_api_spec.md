@@ -301,16 +301,16 @@ Content-Type: application/json
     "user": {
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "email": "user@example.com",
-      "app_id": "default",
+      "appId": "default",
       "role": "user",
       "profile": {
         "displayName": "John Doe",
         "photo": "https://lh3.googleusercontent.com/...",
         "emailVerified": true
       },
-      "created_at": "2026-01-15T10:00:00Z",
-      "updated_at": "2026-01-22T10:00:00Z",
-      "deleted_at": null
+      "createdAt": "2026-01-15T10:00:00Z",
+      "updatedAt": "2026-01-22T10:00:00Z",
+      "deletedAt": null
     }
   }
 }
@@ -472,16 +472,16 @@ Authorization: Bearer <token>
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
-    "app_id": "default",
+    "appId": "default",
     "role": "user",
     "profile": {
       "displayName": "John Doe",
       "photo": "https://example.com/photo.jpg",
       "nickname": "JohnD"
     },
-    "created_at": "2026-01-15T10:00:00Z",
-    "updated_at": "2026-01-22T10:00:00Z",
-    "deleted_at": null
+    "createdAt": "2026-01-15T10:00:00Z",
+    "updatedAt": "2026-01-22T10:00:00Z",
+    "deletedAt": null
   }
 }
 ```
@@ -523,16 +523,16 @@ Content-Type: application/json
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
-    "app_id": "default",
+    "appId": "default",
     "role": "user",
     "profile": {
       "displayName": "John Doe",
       "photo": "https://example.com/photo.jpg",
       "nickname": "NewNickname"
     },
-    "created_at": "2026-01-15T10:00:00Z",
-    "updated_at": "2026-01-22T11:00:00Z",
-    "deleted_at": null
+    "createdAt": "2026-01-15T10:00:00Z",
+    "updatedAt": "2026-01-22T11:00:00Z",
+    "deletedAt": null
   }
 }
 ```
@@ -617,8 +617,8 @@ Content-Type: application/json
 {
   "exchange": "binance",
   "label": "Main Account",
-  "access_key": "AKxxxxxxxxxxxxxxxxxxxx",
-  "secret_key": "SKyyyyyyyyyyyyyyyyyyyy"
+  "accessKey": "AKxxxxxxxxxxxxxxxxxxxx",
+  "secretKey": "SKyyyyyyyyyyyyyyyyyyyy"
 }
 ```
 
@@ -635,10 +635,10 @@ Content-Type: application/json
 {
   "ok": true,
   "data": {
-    "key_id": 15,
+    "keyId": 15,
     "exchange": "binance",
     "label": "Main Account",
-    "created_at": "2026-01-22T10:00:00Z"
+    "createdAt": "2026-01-22T10:00:00Z"
   }
 }
 ```
@@ -706,14 +706,14 @@ Authorization: Bearer <token>
   "ok": true,
   "data": {
     "deleted": true,
-    "key_id": 15
+    "keyId": 15
   }
 }
 ```
 
 **Error Responses**
 
-- `404 KEY_NOT_FOUND`: 해당 key_id가 존재하지 않음
+- `404 KEY_NOT_FOUND`: 해당 keyId가 존재하지 않음
 
 ---
 
@@ -732,19 +732,19 @@ Authorization: Bearer <token>
 {
   "ok": true,
   "data": {
-    "key_id": 15,
+    "keyId": 15,
     "valid": true,
     "permissions": {
-      "spot_trading": true,
-      "futures_trading": true,
-      "margin_trading": false,
+      "spotTrading": true,
+      "futuresTrading": true,
+      "marginTrading": false,
       "withdraw": false
     },
     "restrictions": {
       "ip_restricted": true,
       "allowed_ips": ["123.45.67.89"]
     },
-    "verified_at": "2026-01-22T10:30:00Z"
+    "verifiedAt": "2026-01-22T10:30:00Z"
   }
 }
 ```
@@ -795,7 +795,7 @@ GET /logs?page=1&limit=20&status=SUCCESS&ticker=BTCUSDT&from=2026-01-01T00:00:00
     "items": [
       {
         "log_id": 501,
-        "signal_id": "1737360000000",
+        "signalId": "1737360000000",
         "provider": "binance",
         "exchange": "binance",
         "market": "futures_um",
@@ -804,7 +804,7 @@ GET /logs?page=1&limit=20&status=SUCCESS&ticker=BTCUSDT&from=2026-01-01T00:00:00
         "status": "SUCCESS",
         "entryPrice": "50000.00",
         "quantity": "0.1",
-        "created_at": "2026-01-22T10:00:00Z"
+        "createdAt": "2026-01-22T10:00:00Z"
       }
     ],
     "pagination": {
@@ -835,7 +835,7 @@ Authorization: Bearer <token>
   "ok": true,
   "data": {
     "log_id": 501,
-    "signal_id": "1737360000000",
+    "signalId": "1737360000000",
     "provider": "binance",
     "exchange": "binance",
     "market": "futures_um",
@@ -851,9 +851,9 @@ Authorization: Bearer <token>
         "take_profit": { "type": "percent", "value": 5.0 }
       }
     },
-    "entry_json": {
-      "order_id": "12345678",
-      "client_order_id": "WH_U1_SIG1737360000000_ENTRY",
+    "entryJson": {
+      "orderId": "12345678",
+      "clientOrderId": "WH_U1_SIG1737360000000_ENTRY",
       "symbol": "BTCUSDT",
       "side": "BUY",
       "type": "MARKET",
@@ -861,7 +861,7 @@ Authorization: Bearer <token>
       "price": "50000.00",
       "status": "FILLED"
     },
-    "exit_json": {
+    "exitJson": {
       "tp_order_id": "12345679",
       "sl_order_id": "12345680",
       "tp": {
@@ -873,8 +873,8 @@ Authorization: Bearer <token>
         "quantity": "0.1"
       }
     },
-    "error_json": null,
-    "created_at": "2026-01-22T10:00:00Z"
+    "errorJson": null,
+    "createdAt": "2026-01-22T10:00:00Z"
   }
 }
 ```
@@ -900,15 +900,15 @@ Authorization: Bearer <token>
 {
   "ok": true,
   "data": {
-    "signal_id": "1737360000000",
+    "signalId": "1737360000000",
     "status": "DONE",
     "provider": "binance",
     "market": "futures_um",
     "ticker": "BTCUSDT",
-    "job_id": "550e8400-e29b-41d4-a716-446655440000",
-    "trace_id": "sqs_msg_abc123",
-    "created_at": "2026-01-22T10:00:00Z",
-    "updated_at": "2026-01-22T10:00:15Z"
+    "jobId": "550e8400-e29b-41d4-a716-446655440000",
+    "traceId": "sqs_msg_abc123",
+    "createdAt": "2026-01-22T10:00:00Z",
+    "updatedAt": "2026-01-22T10:00:15Z"
   }
 }
 ```
@@ -1167,9 +1167,9 @@ Authorization: Bearer <token>
         "read": false,
         "metadata": {
           "log_id": 501,
-          "signal_id": "1737360000000"
+          "signalId": "1737360000000"
         },
-        "created_at": "2026-01-22T10:00:00Z"
+        "createdAt": "2026-01-22T10:00:00Z"
       }
     ],
     "unread_count": 5,
@@ -1630,7 +1630,7 @@ GET /webhook-builder/schema
       "options": {
         "type": "object",
         "properties": {
-          "signal_id": { "type": "string" },
+          "signalId": { "type": "string" },
           "leverage": { "type": "integer", "minimum": 1, "maximum": 125 },
           "position_mode": { "type": "string", "enum": ["ONE_WAY", "HEDGE"] }
         }
@@ -1669,7 +1669,7 @@ GET /webhook-builder/templates
         "action": "open_long",
         "entry": { "type": "market" },
         "qty": { "type": "percent", "value": 50 },
-        "options": { "signal_id": "{{timenow}}", "leverage": 10 }
+        "options": { "signalId": "{{timenow}}", "leverage": 10 }
       }
     },
     {
@@ -1686,7 +1686,7 @@ GET /webhook-builder/templates
           "stop_loss": { "type": "percent", "value": 2 },
           "take_profit": [{ "type": "percent", "value": 5, "qty_percent": 100 }]
         },
-        "options": { "signal_id": "{{timenow}}", "leverage": 5 }
+        "options": { "signalId": "{{timenow}}", "leverage": 5 }
       }
     },
     {
@@ -1698,7 +1698,7 @@ GET /webhook-builder/templates
         "ticker": "BTCUSDT",
         "action": "close_long",
         "qty": { "type": "percent", "value": 100 },
-        "options": { "signal_id": "{{timenow}}" }
+        "options": { "signalId": "{{timenow}}" }
       }
     }
   ]
@@ -1853,7 +1853,7 @@ Content-Type: application/json
         ]
       },
       "options": {
-        "signal_id": "{{timenow}}",
+        "signalId": "{{timenow}}",
         "leverage": 10,
         "position_mode": "ONE_WAY",
         "reduce_only": false

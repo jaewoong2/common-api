@@ -10,14 +10,40 @@ import {
 import { TradePosition, TradeBalance } from "../../../../common/types";
 import { WebhookAction } from "../../../../common/enums";
 
+/**
+ * Discord Embed 색상 정의
+ */
+const EMBED_COLORS = {
+  LONG: 0x00ff00, // Green
+  SHORT: 0xff0000, // Red
+  CLOSE: 0xffa500, // Orange
+  CLOSE_ALL: 0xffff00, // Yellow
+  INFO: 0x3498db, // Blue
+  SUCCESS: 0x2ecc71, // Light Green
+  ERROR: 0xe74c3c, // Dark Red
+} as const;
+
+/**
+ * Action 별 Emoji 정의
+ */
+const ACTION_EMOJIS: Record<string, string> = {
+  [WebhookAction.OPEN_LONG]: "🚀",
+  [WebhookAction.OPEN_SHORT]: "📉",
+  [WebhookAction.CLOSE_LONG]: "💰",
+  [WebhookAction.CLOSE_SHORT]: "💰",
+  [WebhookAction.CLOSE_ALL]: "🔄",
+};
+
+/**
+ * Discord Adapter
+ * @description Discord Webhook으로 트레이딩 알림 전송
+ */
 @Injectable()
 export class DiscordAdapter implements ProviderAdapter {
   readonly provider = "discord";
   private readonly logger = new Logger(DiscordAdapter.name);
 
   async validatePayload(payload: BasePayload): Promise<void> {
-    // Discord doesn't require strict payload validation like exchanges
-    // But we still check for required fields for message formatting
     if (!payload.ticker) {
       throw new BadRequestException(
         "Ticker is required for Discord notification",
@@ -36,18 +62,29 @@ export class DiscordAdapter implements ProviderAdapter {
     payload: BasePayload,
     credentials: ExchangeCredentials,
   ): Promise<ProviderRequest> {
-    // Discord adapter uses the credentials (webhook URL) directly in execute
-    // So here we just pass through necessary data
+    // Discord adapter는 metadata에 원본 payload 저장
     return {
       userId,
       signalId,
       symbol: payload.ticker,
-      side: payload.action.includes("LONG") ? "BUY" : "SELL", // Approximate mapping
-      orderType: "market",
-      quantity: "0",
+      side: payload.action.includes("LONG") ? "BUY" : "SELL",
+      orderType: payload.entry?.type || "market",
+      quantity: payload.qty?.value?.toString() || "0",
+      price: payload.entry?.price?.toString(),
+      leverage: payload.options?.leverage,
+      stopLoss: payload.strategy?.stop_loss?.value,
+      takeProfit: payload.strategy?.take_profit?.value,
       clientOrderId: signalId,
-      // We pass the raw payload in a way that execute can use it for formatting
-      // leveraging the fact that ProviderRequest is internal
+      positionMode: payload.options?.position_mode,
+      reduceOnly: payload.options?.reduce_only,
+      // 원본 payload를 metadata에 저장하여 execute에서 활용
+      metadata: {
+        payload,
+        action: payload.action,
+        strategy: payload.strategy,
+        qtyType: payload.qty?.type,
+        qtyValue: payload.qty?.value,
+      },
     } as ProviderRequest;
   }
 
@@ -66,60 +103,21 @@ export class DiscordAdapter implements ProviderAdapter {
     }
 
     try {
-      // Re-construct context since transformRequest simplified it.
-      // In a cleaner design, we might pass the full payload through,
-      // but for now we will infer from what we have or if possible access the original payload.
-      // Wait, execute() receives ProviderRequest which we created.
-      // Let's rely on the fact that existing flow passes payload to transformRequest.
-      // But execute only gets ProviderRequest.
-
-      // To properly support rich messages, we need the FULL payload in execute.
-      // We can smuggle it in via type casting or by adding a field to ProviderRequest
-      // if we were modifying the interface, but we shouldn't modify the interface just for this if possible.
-      // However, ProviderRequest is an interface we Control.
-      // But typically we should use the fields we have.
-
-      // Let's rebuild the message based on the standard ProviderRequest fields
-      // AND maybe we can store the 'strategy' details in the 'clientOrderId' or similar hack?
-      // NO, that's bad.
-
-      // Better approach: The `handleWebhook` service calls `transformRequest` then `execute`.
-      // The `ProviderRequest` interface is:
-      /*
-      export interface ProviderRequest {
-        userId: string;
-        signalId: string;
-        symbol: string;
-        side: OrderSide;
-        ...
-      }
-      */
-      // It seems `ProviderRequest` is tightly coupled to Trading logic.
-      // For Discord, we want to display Strategy (TP/SL).
-      // I will check if I can add optional 'metadata' or 'originalPayload' to ProviderRequest interface
-      // Or I will just format the message IN transformRequest and pass it as a string to execute?
-      // ProviderRequest doesn't have a generic 'data' field.
-
-      // Let's modify ProviderAdapter interface slightly to allow 'metadata' or 'raw'
-      // OR (safer) just put the formatted Discord Body into a field we repurpose or add.
-
-      // Actually, looking at `ProviderRequest`, it has specific fields.
-      // I will add an optional `metadata` field to `ProviderRequest` in the interface.
-      // This is a common pattern for flexibility.
-
-      // But first, let's write this assuming I'll update the interface.
-
       const embed = this.createEmbed(request);
 
       await axios.post(webhookUrl, {
         embeds: [embed],
       });
 
+      this.logger.log(
+        `Discord webhook sent: symbol=${request.symbol}, action=${request.metadata?.action}`,
+      );
+
       return {
         success: true,
         status: "SUCCESS",
         entryJson: {
-          orderId: "discord-msg-" + Date.now(),
+          orderId: `discord-${Date.now()}`,
           symbol: request.symbol,
           side: request.side,
           quantity: request.quantity,
@@ -140,74 +138,214 @@ export class DiscordAdapter implements ProviderAdapter {
     }
   }
 
-  private createEmbed(request: ProviderRequest & { metadata?: any }) {
-    const isLong = request.side === "BUY";
-    const color = isLong ? 0x00ff00 : 0xff0000; // Green or Red
-    const title = `${isLong ? "🚀 LONG" : "📉 SHORT"} Entry: ${request.symbol}`;
-
-    // Try to recover details from metadata if valid
+  /**
+   * Discord Embed 생성
+   */
+  private createEmbed(
+    request: ProviderRequest & { metadata?: Record<string, unknown> },
+  ) {
     const metadata = request.metadata || {};
-    const payload = metadata.payload || {};
+    const action = (metadata.action as string) || "";
+    const payload = (metadata.payload as BasePayload) || {};
+    const strategy = metadata.strategy as BasePayload["strategy"];
 
-    // Fallback or specific action handling
-    let description = "Trading Signal Received";
-    if (payload.action === WebhookAction.CLOSE_ALL)
-      description = "Close All Positions";
-    else if (payload.action?.includes("CLOSE")) description = "Close Position";
+    // Action별 색상과 Emoji 결정
+    const { color, emoji, title } = this.getActionStyles(
+      action,
+      request.symbol,
+    );
 
-    // Build Fields
-    const fields = [
-      {
-        name: "Price",
-        value: request.price ? `$${request.price}` : "Market",
-        inline: true,
-      },
-      { name: "Quantity", value: request.quantity || "N/A", inline: true },
-      {
-        name: "Leverage",
-        value: request.leverage ? `x${request.leverage}` : "-",
-        inline: true,
-      },
-    ];
+    // Description 생성
+    const description = this.buildDescription(action, request);
 
-    if (request.takeProfit)
-      fields.push({
-        name: "Take Profit",
-        value: `${request.takeProfit}`,
-        inline: true,
-      });
-    if (request.stopLoss)
-      fields.push({
-        name: "Stop Loss",
-        value: `${request.stopLoss}`,
-        inline: true,
-      });
+    // Fields 생성
+    const fields = this.buildFields(request, metadata, strategy);
 
     return {
-      title,
+      title: `${emoji} ${title}`,
       description,
       color,
       fields,
       footer: {
         text: `Signal ID: ${request.signalId}`,
+        icon_url: "https://cdn.discordapp.com/embed/avatars/0.png",
       },
       timestamp: new Date().toISOString(),
     };
   }
 
+  /**
+   * Action별 스타일 결정
+   */
+  private getActionStyles(
+    action: string,
+    symbol: string,
+  ): { color: number; emoji: string; title: string } {
+    const emoji = ACTION_EMOJIS[action] || "📊";
+
+    if (action === WebhookAction.OPEN_LONG) {
+      return {
+        color: EMBED_COLORS.LONG,
+        emoji,
+        title: `LONG Entry: ${symbol}`,
+      };
+    }
+    if (action === WebhookAction.OPEN_SHORT) {
+      return {
+        color: EMBED_COLORS.SHORT,
+        emoji,
+        title: `SHORT Entry: ${symbol}`,
+      };
+    }
+    if (action === WebhookAction.CLOSE_LONG) {
+      return {
+        color: EMBED_COLORS.CLOSE,
+        emoji,
+        title: `Close LONG: ${symbol}`,
+      };
+    }
+    if (action === WebhookAction.CLOSE_SHORT) {
+      return {
+        color: EMBED_COLORS.CLOSE,
+        emoji,
+        title: `Close SHORT: ${symbol}`,
+      };
+    }
+    if (action === WebhookAction.CLOSE_ALL) {
+      return {
+        color: EMBED_COLORS.CLOSE_ALL,
+        emoji,
+        title: `Close ALL: ${symbol}`,
+      };
+    }
+
+    return { color: EMBED_COLORS.INFO, emoji, title: `Signal: ${symbol}` };
+  }
+
+  /**
+   * Description 생성
+   */
+  private buildDescription(action: string, request: ProviderRequest): string {
+    const parts: string[] = [];
+
+    if (action === WebhookAction.CLOSE_ALL) {
+      parts.push("🔄 **모든 포지션 청산 요청**");
+    } else if (action.includes("CLOSE")) {
+      parts.push("💰 **포지션 청산 요청**");
+    } else if (action.includes("LONG")) {
+      parts.push("📈 **롱 포지션 진입**");
+    } else if (action.includes("SHORT")) {
+      parts.push("📉 **숏 포지션 진입**");
+    }
+
+    if (request.orderType === "limit" && request.price) {
+      parts.push(`\n지정가: $${request.price}`);
+    } else {
+      parts.push("\n시장가 주문");
+    }
+
+    return parts.join("");
+  }
+
+  /**
+   * Embed Fields 생성
+   */
+  private buildFields(
+    request: ProviderRequest,
+    metadata: Record<string, unknown>,
+    strategy?: BasePayload["strategy"],
+  ): Array<{ name: string; value: string; inline: boolean }> {
+    const fields: Array<{ name: string; value: string; inline: boolean }> = [];
+
+    // 가격 정보
+    fields.push({
+      name: "💵 Price",
+      value: request.price ? `$${request.price}` : "Market",
+      inline: true,
+    });
+
+    // 수량 정보
+    const qtyType = metadata.qtyType as string;
+    const qtyValue = metadata.qtyValue as number;
+    const qtyDisplay =
+      qtyType === "percent" ? `${qtyValue}%` : request.quantity || "N/A";
+    fields.push({
+      name: "📊 Quantity",
+      value: qtyDisplay,
+      inline: true,
+    });
+
+    // 레버리지
+    if (request.leverage) {
+      fields.push({
+        name: "⚡ Leverage",
+        value: `x${request.leverage}`,
+        inline: true,
+      });
+    }
+
+    // Strategy - Stop Loss
+    if (strategy?.stop_loss) {
+      const sl = strategy.stop_loss;
+      const slValue = sl.type === "percent" ? `${sl.value}%` : `$${sl.value}`;
+      fields.push({
+        name: "🛑 Stop Loss",
+        value: slValue,
+        inline: true,
+      });
+    }
+
+    // Strategy - Take Profit
+    if (strategy?.take_profit) {
+      const tp = strategy.take_profit;
+      // take_profit이 배열인 경우 처리
+      if (Array.isArray(tp)) {
+        const tpValues = tp
+          .map((t: { type: string; value: number; qty_percent?: number }) => {
+            const val = t.type === "percent" ? `${t.value}%` : `$${t.value}`;
+            return t.qty_percent ? `${val} (${t.qty_percent}%)` : val;
+          })
+          .join(", ");
+        fields.push({
+          name: "🎯 Take Profit",
+          value: tpValues,
+          inline: true,
+        });
+      } else {
+        const tpValue = tp.type === "percent" ? `${tp.value}%` : `$${tp.value}`;
+        fields.push({
+          name: "🎯 Take Profit",
+          value: tpValue,
+          inline: true,
+        });
+      }
+    }
+
+    // Position Mode
+    if (request.positionMode) {
+      fields.push({
+        name: "📋 Mode",
+        value: request.positionMode,
+        inline: true,
+      });
+    }
+
+    return fields;
+  }
+
   async getPositions(
     credentials: ExchangeCredentials,
     symbol?: string,
-    options?: Record<string, any>,
+    options?: Record<string, unknown>,
   ): Promise<TradePosition[]> {
-    return []; // Not supported
+    return []; // Discord doesn't support positions
   }
 
   async getBalances(
     credentials: ExchangeCredentials,
     assets?: string[],
-    options?: Record<string, any>,
+    options?: Record<string, unknown>,
   ): Promise<TradeBalance[]> {
-    return []; // Not supported
+    return []; // Discord doesn't support balances
   }
 }

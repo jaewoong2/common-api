@@ -1,15 +1,59 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { WebhookBuilderService } from "./webhook-builder.service";
 import { MarketType, WebhookAction } from "../../common/enums";
-import { GenerateMessageRequestDto } from "./dto/generate-message.dto";
+import {
+  BuilderRegistry,
+  BinanceBuilder,
+  DiscordBuilder,
+  KisBuilder,
+  BUILDER_ADAPTERS,
+} from "./builders";
+
+// Mock BinanceApiClient
+const mockBinanceApiClient = {
+  getPublicSymbols: jest.fn().mockResolvedValue([]),
+};
+
+// Mock ConfigService
+const mockConfigService = {
+  get: jest.fn(),
+};
 
 describe("WebhookBuilderService", () => {
   let service: WebhookBuilderService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [WebhookBuilderService],
-    }).compile();
+      providers: [
+        WebhookBuilderService,
+        BinanceBuilder,
+        DiscordBuilder,
+        KisBuilder,
+        {
+          provide: BUILDER_ADAPTERS,
+          useFactory: (
+            binanceBuilder: BinanceBuilder,
+            discordBuilder: DiscordBuilder,
+            kisBuilder: KisBuilder,
+          ) => [binanceBuilder, discordBuilder, kisBuilder],
+          inject: [BinanceBuilder, DiscordBuilder, KisBuilder],
+        },
+        BuilderRegistry,
+        {
+          provide: "BinanceApiClient",
+          useValue: mockBinanceApiClient,
+        },
+        {
+          provide: "ConfigService",
+          useValue: mockConfigService,
+        },
+      ],
+    })
+      .overrideProvider("BinanceApiClient")
+      .useValue(mockBinanceApiClient)
+      .overrideProvider("ConfigService")
+      .useValue(mockConfigService)
+      .compile();
 
     service = module.get<WebhookBuilderService>(WebhookBuilderService);
   });
@@ -18,33 +62,46 @@ describe("WebhookBuilderService", () => {
     expect(service).toBeDefined();
   });
 
-  it("should return correct options structure", () => {
-    const options = service.getOptions();
-    expect(options.exchanges).toBeDefined();
+  it("should return correct options structure for binance", () => {
+    const options = service.getOptions("binance");
+    expect(options.provider).toBe("binance");
     expect(options.markets).toBeDefined();
     expect(options.entryTypes).toBeDefined();
     expect(options.tpSlTypes).toBeDefined();
     expect(options.defaults).toBeDefined();
 
-    const entryLimit = options.entryTypes.find((e) => e.value === "limit");
+    const entryLimit = options.entryTypes?.find((e) => e.value === "limit");
     expect(entryLimit).toBeDefined();
 
-    const tpPrice = options.tpSlTypes.find((e) => e.value === "price");
+    const tpPrice = options.tpSlTypes?.find((e) => e.value === "price");
     expect(tpPrice).toBeDefined();
   });
 
-  it("should generate basic market order message", () => {
+  it("should return discord options", () => {
+    const options = service.getOptions("discord");
+    expect(options.provider).toBe("discord");
+    expect(options.messageTypes).toBeDefined();
+    expect(options.mentionTypes).toBeDefined();
+  });
+
+  it("should return kis options", () => {
+    const options = service.getOptions("kis");
+    expect(options.provider).toBe("kis");
+    expect(options.orderTypes).toBeDefined();
+    expect(options.accountTypes).toBeDefined();
+  });
+
+  it("should generate basic market order message for binance", () => {
     const input = {
-      exchange: "binance",
       market: MarketType.FUTURES_UM,
       ticker: "BTCUSDT",
       action: WebhookAction.OPEN_LONG,
       entry: { type: "market" },
       qty: { type: "percent", value: 50 },
       options: { leverage: 10, position_mode: "ONE_WAY" },
-    } as GenerateMessageRequestDto;
+    };
 
-    const result = service.generateMessage(input);
+    const result = service.generateMessage("binance", input);
     const parsed = JSON.parse(result.message);
 
     expect(parsed.entry.type).toBe("market");
@@ -54,65 +111,62 @@ describe("WebhookBuilderService", () => {
 
   it("should generate limit order message with price", () => {
     const input = {
-      exchange: "binance",
       market: MarketType.FUTURES_UM,
       ticker: "BTCUSDT",
       action: WebhookAction.OPEN_LONG,
       entry: { type: "limit", price: 50000 },
       qty: { type: "percent", value: 50 },
-    } as GenerateMessageRequestDto;
+    };
 
-    const result = service.generateMessage(input);
+    const result = service.generateMessage("binance", input);
     const parsed = JSON.parse(result.message);
 
     expect(parsed.entry.type).toBe("limit");
     expect(parsed.entry.price).toBe(50000);
   });
 
-  it("should generate partial TP strategy", () => {
+  it("should generate discord embed message", () => {
     const input = {
-      exchange: "binance",
-      market: MarketType.FUTURES_UM,
-      ticker: "BTCUSDT",
-      action: WebhookAction.OPEN_LONG,
-      entry: { type: "market" },
-      qty: { type: "percent", value: 50 },
-      strategy: {
-        stop_loss: { type: "price", value: 49000 },
-        take_profit: [
-          { type: "percent", value: 5, qty_percent: 50 },
-          { type: "price", value: 55000, qty_percent: 100 },
-        ],
+      message_type: "embed",
+      embed: {
+        title: "Test Alert",
+        description: "Test description",
+        color: 0x00ff00,
       },
-    } as GenerateMessageRequestDto;
+    };
 
-    const result = service.generateMessage(input);
+    const result = service.generateMessage("discord", input);
     const parsed = JSON.parse(result.message);
 
-    expect(parsed.strategy.stop_loss.type).toBe("price");
-    expect(parsed.strategy.stop_loss.value).toBe(49000);
-
-    expect(Array.isArray(parsed.strategy.take_profit)).toBe(true);
-    expect(parsed.strategy.take_profit[0].type).toBe("percent");
-    expect(parsed.strategy.take_profit[0].qty_percent).toBe(50);
-    expect(parsed.strategy.take_profit[1].type).toBe("price");
-    expect(parsed.strategy.take_profit[1].value).toBe(55000);
+    expect(parsed.embeds).toBeDefined();
+    expect(parsed.embeds[0].title).toBe("Test Alert");
   });
 
-  it("should support TradingView placeholders in values", () => {
+  it("should generate kis order message", () => {
     const input = {
-      exchange: "binance",
-      market: MarketType.FUTURES_UM,
-      ticker: "BTCUSDT",
-      action: WebhookAction.OPEN_LONG,
-      entry: { type: "limit", price: "{{close}}" }, // placeholder string
-      qty: { type: "fixed", value: "{{strategy.order.contracts}}" }, // placeholder string
-    } as GenerateMessageRequestDto;
+      market: "kospi",
+      ticker: "005930",
+      action: "buy",
+      qty: { type: "fixed", value: 10 },
+      options: { order_type: "01" },
+    };
 
-    const result = service.generateMessage(input);
+    const result = service.generateMessage("kis", input);
     const parsed = JSON.parse(result.message);
 
-    expect(parsed.entry.price).toBe("{{close}}");
-    expect(parsed.qty.value).toBe("{{strategy.order.contracts}}");
+    expect(parsed.provider).toBe("kis");
+    expect(parsed.market).toBe("kospi");
+    expect(parsed.ticker).toBe("005930");
+  });
+
+  it("should return supported providers", () => {
+    const providers = service.getSupportedProviders();
+    expect(providers).toContainEqual(
+      expect.objectContaining({ value: "binance" }),
+    );
+    expect(providers).toContainEqual(
+      expect.objectContaining({ value: "discord" }),
+    );
+    expect(providers).toContainEqual(expect.objectContaining({ value: "kis" }));
   });
 });

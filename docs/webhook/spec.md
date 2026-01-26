@@ -34,7 +34,7 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
   "ok": true,
 
   "data": {},
-  "meta": { "trace_id": "..." },
+  "meta": { "traceId": "..." },
   "request_id": "req-xyz",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
@@ -51,7 +51,7 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
     "message": "qty.value must be positive",
     "details": {}
   },
-  "meta": { "trace_id": "..." },
+  "meta": { "traceId": "..." },
   "request_id": "req-xyz",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
@@ -88,10 +88,10 @@ Binance Spot + USDT-M Futures | SQS FIFO + Postgres-only | SaaS Edition
   "ok": true,
 
   "data": {
-    "user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
     "email": "test@a.com",
     "auth_token": "a3c1...uuid",
-    "created_at": "2026-01-19T10:00:00Z"
+    "createdAt": "2026-01-19T10:00:00Z"
   },
   "request_id": "req-user-me",
   "timestamp": "2026-01-24T05:30:36.950Z"
@@ -156,8 +156,8 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 {
   "exchange": "binance", // or "discord"
   "label": "main",
-  "access_key": "AK... (or Webhook URL for Discord)",
-  "secret_key": "SK... (or 'none' for Discord)"
+  "accessKey": "AK... (or Webhook URL for Discord)",
+  "secretKey": "SK... (or 'none' for Discord)"
 }
 ```
 
@@ -177,7 +177,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
   "ok": true,
 
   "data": {
-    "key_id": 10
+    "keyId": 10
   },
   "request_id": "req-create-key",
   "timestamp": "2026-01-24T05:30:36.950Z"
@@ -203,11 +203,11 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
 
   "data": [
     {
-      "key_id": 10,
+      "keyId": 10,
       "exchange": "binance",
       "label": "main",
       "access_key_masked": "AK***1234",
-      "created_at": "2026-01-19T10:00:00Z"
+      "createdAt": "2026-01-19T10:00:00Z"
     }
   ],
   "request_id": "req-list-keys",
@@ -264,13 +264,13 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
     "items": [
       {
         "log_id": 501,
-        "signal_id": "123",
+        "signalId": "123",
         "provider": "binance",
         "market": "futures_um",
         "ticker": "BTCUSDT",
         "action": "open_long",
         "status": "SUCCESS",
-        "created_at": "2026-01-19T10:00:00Z"
+        "createdAt": "2026-01-19T10:00:00Z"
       }
     ],
     "page": 1,
@@ -293,12 +293,12 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
   "ok": true,
   "data": {
     "log_id": 501,
-    "signal_id": "123",
+    "signalId": "123",
     "provider": "binance",
-    "request_json": {},
-    "entry_json": {},
-    "exit_json": {},
-    "error_json": null
+    "requestJson": {},
+    "entryJson": {},
+    "exitJson": {},
+    "errorJson": null
   }
 }
 ```
@@ -334,7 +334,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
     "leverage": 10,
     "position_mode": "ONE_WAY",
     "reduce_only": false,
-    "signal_id": "{{timenow}}"
+    "signalId": "{{timenow}}"
   }
 }
 ```
@@ -363,8 +363,8 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
   "ok": true,
   "data": {
     "status": "queued",
-    "job_id": "550e8400-e29b-41d4-a716-446655440000",
-    "trace_id": "sqs_message_id_here"
+    "jobId": "550e8400-e29b-41d4-a716-446655440000",
+    "traceId": "sqs_message_id_here"
   }
 }
 ```
@@ -432,7 +432,7 @@ SaaS면 이거 있으면 해킹/리플레이 공격 방어력 상승
     ]
   },
   "options": {
-    "signal_id": "{{timenow}}"
+    "signalId": "{{timenow}}"
   }
 }
 ```
@@ -740,7 +740,7 @@ interface PositionInfo {
   "action": "close_long",
   "qty": { "type": "percent", "value": 50 },
   "options": {
-    "signal_id": "{{timenow}}"
+    "signalId": "{{timenow}}"
   }
 }
 ```
@@ -754,7 +754,7 @@ interface PositionInfo {
   "ticker": "BTCUSDT",
   "action": "close_all",
   "options": {
-    "signal_id": "{{timenow}}"
+    "signalId": "{{timenow}}"
   }
 }
 ```
@@ -789,11 +789,11 @@ interface PositionInfo {
 
 ```json
 {
-  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
   "job_type": "webhook_execution",
-  "user_id": "550e8400-e29b-41d4-a716-446655440001",
+  "userId": "550e8400-e29b-41d4-a716-446655440001",
   "payload": {
-    "signal_id": "1737360000000",
+    "signalId": "1737360000000",
     "provider": "binance",
     "auth_token": "a3c1...uuid",
     "request": {
@@ -809,12 +809,12 @@ interface PositionInfo {
       "options": {
         "leverage": 10,
         "position_mode": "ONE_WAY",
-        "signal_id": "1737360000000"
+        "signalId": "1737360000000"
       }
     }
   },
   "metadata": {
-    "trace_id": "sqs_msg_abc123",
+    "traceId": "sqs_msg_abc123",
     "retry_count": 0
   }
 }
@@ -841,14 +841,14 @@ interface PositionInfo {
   "ok": true,
   "data": {
     "status": "DONE",
-    "entry_json": {
-      "order_id": "12345678",
+    "entryJson": {
+      "orderId": "12345678",
       "symbol": "BTCUSDT",
       "side": "BUY",
       "quantity": "0.001",
       "price": "50000.00"
     },
-    "exit_json": {
+    "exitJson": {
       "tp_order_id": "12345679",
       "sl_order_id": "12345680"
     }
@@ -863,9 +863,9 @@ interface PositionInfo {
   "ok": true,
   "data": {
     "status": "PARTIAL_FAIL",
-    "entry_json": { "order_id": "12345678" },
-    "exit_json": null,
-    "error_json": {
+    "entryJson": { "orderId": "12345678" },
+    "exitJson": null,
+    "errorJson": {
       "message": "Failed to place TP/SL orders",
       "details": "Rate limit exceeded"
     }
@@ -956,13 +956,13 @@ TradingView → Receiver → job_service → Webhook Event SQS
 {
   "ok": true,
   "data": {
-    "signal_id": "123",
+    "signalId": "123",
     "status": "DONE",
     "provider": "binance",
     "market": "futures_um",
     "ticker": "BTCUSDT",
-    "trace_id": "sqs...",
-    "created_at": "2026-01-19T10:00:00Z"
+    "traceId": "sqs...",
+    "createdAt": "2026-01-19T10:00:00Z"
   }
 }
 ```
@@ -1022,7 +1022,7 @@ SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 
 
 ```json
 {
-  "signal_id": "123"
+  "signalId": "123"
 }
 ```
 
@@ -1058,8 +1058,8 @@ SaaS 운영하면 무조건 필요함. 사용자/개발자/운영자 디버깅, 
 
 ```json
 {
-  "user_id": "550e8400-e29b-41d4-a716-446655440000",
-  "signal_id": "123"
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "signalId": "123"
 }
 ```
 
@@ -1160,3 +1160,180 @@ WH_U1_SIG123_SL
 
 - /logs paging/filter 가능? → **예, page/limit + status/ticker/market/provider/date 필터 지원**
 - /logs/:id 상세 조회 가능? → **예, request_json/entry_json/exit_json/error_json 포함 상세 정보 제공**
+
+## 11. Webhook Builder API (Multi-Provider 지원)
+
+### 11.1 지원 Provider 목록
+
+#### GET /webhook-builder/providers
+
+- Auth: Public
+
+**Response 200**
+
+```json
+{
+  "ok": true,
+  "data": [
+    { "value": "binance", "label": "Binance (바이낸스)" },
+    { "value": "discord", "label": "Discord (디스코드)" },
+    { "value": "kis", "label": "KIS (한국투자증권)" }
+  ]
+}
+```
+
+### 11.2 Provider별 옵션 조회
+
+#### GET /webhook-builder/options?provider={provider}
+
+- Auth: Public
+- Query Params: provider (default: binance)
+
+**Response 200 (Binance)**
+
+```json
+{
+  "ok": true,
+  "data": {
+    "provider": "binance",
+    "markets": [
+      { "value": "spot", "label": "Spot" },
+      { "value": "futures_um", "label": "Futures USDT-M" }
+    ],
+    "actions": [
+      { "value": "open_long", "label": "Open Long (롱 진입)" },
+      { "value": "open_short", "label": "Open Short (숏 진입)" }
+    ],
+    "entryTypes": [...],
+    "qtyTypes": [...],
+    "tpSlTypes": [...],
+    "defaults": {
+      "leverage": { "min": 1, "max": 125, "default": 10 }
+    }
+  }
+}
+```
+
+**Response 200 (Discord)**
+
+```json
+{
+  "ok": true,
+  "data": {
+    "provider": "discord",
+    "messageTypes": [
+      { "value": "embed", "label": "Embed (리치 메시지)" },
+      { "value": "plain", "label": "Plain Text (일반 텍스트)" }
+    ],
+    "mentionTypes": [
+      { "value": "none", "label": "None" },
+      { "value": "here", "label": "@here" },
+      { "value": "everyone", "label": "@everyone" }
+    ]
+  }
+}
+```
+
+### 11.3 메시지 생성
+
+#### POST /webhook-builder/generate?provider={provider}
+
+- Auth: Public
+- Query Params: provider (default: binance)
+
+**Request Body (varies by provider)**
+
+### 11.4 스키마 조회
+
+#### GET /webhook-builder/schema?provider={provider}
+
+### 11.5 템플릿 조회
+
+#### GET /webhook-builder/templates?provider={provider}
+
+## 12. Symbol Management API (Admin)
+
+### 12.1 심볼 동기화
+
+#### POST /admin/symbols/sync
+
+- Auth: Bearer (Admin Only)
+- Query Params:
+  - provider (required): binance, kis
+  - market (required): futures_um, spot, kospi
+
+**Response 200**
+
+```json
+{
+  "ok": true,
+  "data": {
+    "provider": "binance",
+    "market": "futures_um",
+    "total": 350,
+    "added": 10,
+    "updated": 340
+  }
+}
+```
+
+### 12.2 심볼 목록 조회
+
+#### GET /admin/symbols
+
+- Auth: Bearer (Admin Only)
+- Query Params: provider, market, status, assetType
+
+### 12.3 Symbol Entity Schema
+
+```sql
+CREATE TABLE symbols (
+  id SERIAL PRIMARY KEY,
+  provider VARCHAR(50) NOT NULL,
+  market VARCHAR(50) NOT NULL,
+  symbol VARCHAR(30) NOT NULL,
+  name VARCHAR(100),
+  base_asset VARCHAR(30),
+  quote_asset VARCHAR(30),
+  status VARCHAR(20) DEFAULT 'TRADING',
+  asset_type VARCHAR(20),
+  price_precision INT,
+  quantity_precision INT,
+  min_notional DECIMAL(20,8),
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(provider, market, symbol)
+);
+```
+
+## 13. Discord Adapter
+
+### 13.1 Discord Webhook 발송
+
+Discord provider는 거래소가 아닌 알림 전송용이다.
+
+**Exchange Key 등록 시:**
+- exchange: "discord"
+- access_key: Discord Webhook URL
+- secret_key: "none"
+
+**Embed Message 구조:**
+- Action별 색상: LONG=녹색, SHORT=빨강, CLOSE=주황
+- Strategy 정보 표시 (TP/SL)
+- Footer에 Signal ID, Timestamp
+
+### 13.2 Discord Payload 예시
+
+```json
+{
+  "ticker": "BTCUSDT",
+  "action": "open_long",
+  "qty": { "type": "percent", "value": 50 },
+  "strategy": {
+    "stop_loss": { "type": "percent", "value": 2 },
+    "take_profit": [{ "type": "percent", "value": 5, "qty_percent": 100 }]
+  },
+  "options": { "signalId": "{{timenow}}", "leverage": 10 }
+}
+```

@@ -27,6 +27,7 @@ import { WebhookModule } from "./modules/webhook";
 import { TradeLogsModule } from "./modules/trade-logs";
 import { WebhookBuilderModule } from "./modules/webhook-builder";
 import { DashboardModule } from "./modules/dashboard";
+import { SymbolModule } from "./modules/symbol";
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { DashboardModule } from "./modules/dashboard";
     TradeLogsModule,
     WebhookBuilderModule,
     DashboardModule,
+    SymbolModule,
   ],
   providers: [
     {

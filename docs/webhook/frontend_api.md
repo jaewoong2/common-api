@@ -40,7 +40,7 @@
   "data": {
     /* 실제 응답 데이터 */
   },
-  "request_id": "req-abc123",
+  "requestId": "req-abc123",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -56,7 +56,7 @@
     "message": "에러 메시지",
     "details": {}
   },
-  "request_id": "req-abc123",
+  "requestId": "req-abc123",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -70,7 +70,7 @@
 모든 인증 필요 API는 다음 헤더 필수:
 
 ```http
-Authorization: Bearer <access_token>
+Authorization: Bearer <accessToken>
 ```
 
 ### 페이징 규칙
@@ -159,8 +159,8 @@ sequenceDiagram
 1. 로그인 성공 (POST /v1/auth/verify)
    ↓
 2. 토큰 저장 (localStorage)
-   - access_token: 15분 만료
-   - refresh_token: 30일 만료
+   - accessToken: 15분 만료
+   - refreshToken: 30일 만료
    ↓
 3. 유저 정보를 전역 상태에 저장 (Zustand)
    ↓
@@ -175,14 +175,14 @@ sequenceDiagram
 ```typescript
 export const tokenStorage = {
   setTokens: (access: string, refresh: string) => {
-    localStorage.setItem("access_token", access);
-    localStorage.setItem("refresh_token", refresh);
+    localStorage.setItem("accessToken", access);
+    localStorage.setItem("refreshToken", refresh);
   },
   clearTokens: () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
   },
-  hasTokens: () => !!localStorage.getItem("access_token"),
+  hasTokens: () => !!localStorage.getItem("accessToken"),
 };
 ```
 
@@ -195,7 +195,7 @@ verify(
   { code: authCode },
   {
     onSuccess: (data) => {
-      tokenStorage.setTokens(data.access_token, data.refresh_token);
+      tokenStorage.setTokens(data.accessToken, data.refreshToken);
       setUser(data.user); // Zustand 전역 상태에 저장
       navigate("/dashboard");
     },
@@ -204,7 +204,7 @@ verify(
 ```
 
 > [!NOTE]
-> **보안 팁**: 더 높은 보안이 필요하면 `refresh_token`은 httpOnly 쿠키에 저장하세요.
+> **보안 팁**: 더 높은 보안이 필요하면 `refreshToken`은 httpOnly 쿠키에 저장하세요.
 
 ---
 
@@ -224,7 +224,7 @@ Content-Type: application/json
 ```json
 {
   "email": "user@example.com",
-  "redirect_url": "https://yourapp.com/auth/callback"
+  "redirectUrl": "https://yourapp.com/auth/callback"
 }
 ```
 
@@ -243,7 +243,7 @@ Content-Type: application/json
     "message": "Magic link sent to your email",
     "code": "123456"
   },
-  "request_id": "req-abc",
+  "requestId": "req-abc",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -288,17 +288,17 @@ Content-Type: application/json
   "ok": true,
 
   "data": {
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.abc123",
-    "refresh_token": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.abc123",
+    "refreshToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
     "user": {
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "email": "user@example.com",
       "role": "user",
       "profile": {},
-      "created_at": "2026-01-15T10:00:00Z"
+      "createdAt": "2026-01-15T10:00:00Z"
     }
   },
-  "request_id": "req-xyz",
+  "requestId": "req-xyz",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -406,7 +406,7 @@ Content-Type: application/json
 ```json
 {
   "code": "abc123xyz",
-  "redirect_uri": "https://yourapp.com/auth/callback"
+  "redirectUri": "https://yourapp.com/auth/callback"
 }
 ```
 
@@ -422,30 +422,30 @@ Content-Type: application/json
   "ok": true,
 
   "data": {
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJhcHBJZCI6ImRlZmF1bHQiLCJyb2xlIjoidXNlciJ9.abc123",
-    "refresh_token": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJhcHBJZCI6ImRlZmF1bHQiLCJyb2xlIjoidXNlciJ9.abc123",
+    "refreshToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
     "user": {
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "email": "user@example.com",
-      "app_id": "default",
+      "appId": "default",
       "role": "user",
       "profile": {
         "displayName": "John Doe",
         "photo": "https://example.com/photo.jpg"
       },
-      "created_at": "2026-01-15T10:00:00Z",
-      "updated_at": "2026-01-22T10:00:00Z"
+      "createdAt": "2026-01-15T10:00:00Z",
+      "updatedAt": "2026-01-22T10:00:00Z"
     }
   },
-  "request_id": "req-verify",
+  "requestId": "req-verify",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
 
 **토큰 만료 시간:**
 
-- `access_token`: 15분
-- `refresh_token`: 30일
+- `accessToken`: 15분
+- `refreshToken`: 30일
 
 **Error 401 - UNAUTHORIZED**
 
@@ -486,7 +486,7 @@ Content-Type: application/json
 
 ```json
 {
-  "refresh_token": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
+  "refreshToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
 }
 ```
 
@@ -497,9 +497,9 @@ Content-Type: application/json
   "ok": true,
 
   "data": {
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAifQ.new_token"
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAifQ.new_token"
   },
-  "request_id": "req-refresh",
+  "requestId": "req-refresh",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -543,13 +543,13 @@ Content-Type: application/json
 
 ```json
 {
-  "refresh_token": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
+  "refreshToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
 }
 ```
 
 **필드 설명:**
 
-- `refresh_token`: 무효화할 refresh token (선택사항)
+- `refreshToken`: 무효화할 refresh token (선택사항)
 
 **Response 200**
 
@@ -560,33 +560,33 @@ Content-Type: application/json
   "data": {
     "message": "Logged out successfully"
   },
-  "request_id": "req-logout",
+  "requestId": "req-logout",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
 
 > [!TIP]
-> 프론트엔드에서는 로그아웃 시 로컬 스토리지의 access_token과 refresh_token을 모두 삭제해야 합니다.
+> 프론트엔드에서는 로그아웃 시 로컬 스토리지의 accessToken과 refreshToken을 모두 삭제해야 합니다.
 
 **사용 예시:**
 
 ```typescript
 // 로그아웃 처리
 async function logout() {
-  const refreshToken = localStorage.getItem("refresh_token");
+  const refreshToken = localStorage.getItem("refreshToken");
 
   // 1. 서버에 로그아웃 요청
   if (refreshToken) {
     await fetch("/v1/auth/logout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      body: JSON.stringify({ refreshToken: refreshToken }),
     });
   }
 
   // 2. 로컬 토큰 삭제
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
 
   // 3. 로그인 페이지로 리다이렉트
   window.location.href = "/login";
@@ -603,7 +603,7 @@ async function logout() {
 
 ```http
 GET /v1/me
-Authorization: Bearer <access_token>
+Authorization: Bearer <accessToken>
 ```
 
 **Response 200**
@@ -615,18 +615,18 @@ Authorization: Bearer <access_token>
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
-    "app_id": "default",
+    "appId": "default",
     "role": "user",
     "profile": {
       "displayName": "John Doe",
       "photo": "https://example.com/photo.jpg",
       "nickname": "JohnD"
     },
-    "created_at": "2026-01-15T10:00:00Z",
-    "updated_at": "2026-01-22T10:00:00Z",
-    "deleted_at": null
+    "createdAt": "2026-01-15T10:00:00Z",
+    "updatedAt": "2026-01-22T10:00:00Z",
+    "deletedAt": null
   },
-  "request_id": "req-me",
+  "requestId": "req-me",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -661,7 +661,7 @@ Authorization: Bearer <access_token>
 
 ```http
 PATCH /v1/me
-Authorization: Bearer <access_token>
+Authorization: Bearer <accessToken>
 Content-Type: application/json
 ```
 
@@ -686,18 +686,18 @@ Content-Type: application/json
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
-    "app_id": "default",
+    "appId": "default",
     "role": "user",
     "profile": {
       "displayName": "John Doe",
       "photo": "https://example.com/photo.jpg",
       "nickname": "NewNickname"
     },
-    "created_at": "2026-01-15T10:00:00Z",
-    "updated_at": "2026-01-22T11:00:00Z",
-    "deleted_at": null
+    "createdAt": "2026-01-15T10:00:00Z",
+    "updatedAt": "2026-01-22T11:00:00Z",
+    "deletedAt": null
   },
-  "request_id": "req-patch-me",
+  "requestId": "req-patch-me",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -720,7 +720,7 @@ Content-Type: application/json
 
 ```http
 DELETE /v1/me
-Authorization: Bearer <access_token>
+Authorization: Bearer <accessToken>
 ```
 
 **Response 204 - No Content**
@@ -764,14 +764,14 @@ async function deleteAccount() {
   const response = await fetch("/v1/me", {
     method: "DELETE",
     headers: {
-      Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
     },
   });
 
   if (response.status === 204) {
     // 3. 로컬 토큰 삭제
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
 
     // 4. 로그인 페이지로 리다이렉트
     alert("계정이 삭제되었습니다.");
@@ -808,7 +808,7 @@ Authorization: Bearer <token>
     "webhook_url": "https://api.service.com/v1/webhook/binance/a3c1b2d4-5e6f-7a8b-9c0d-e1f2a3b4c5d6",
     "provider": "binance"
   },
-  "request_id": "req-webhook",
+  "requestId": "req-webhook",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -857,9 +857,9 @@ Content-Type: application/json
   "ok": true,
 
   "data": {
-    "key_id": "550e8400-e29b-41d4-a716-446655440000"
+    "keyId": "550e8400-e29b-41d4-a716-446655440000"
   },
-  "request_id": "req-abc",
+  "requestId": "req-abc",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -909,7 +909,7 @@ Authorization: Bearer <token>
       "createdAt": "2026-01-18T14:30:00Z"
     }
   ],
-  "request_id": "req-2ek",
+  "requestId": "req-2ek",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -937,7 +937,7 @@ Authorization: Bearer <token>
   "ok": true,
 
   "data": {},
-  "request_id": "req-delete-key",
+  "requestId": "req-delete-key",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -974,21 +974,21 @@ Authorization: Bearer <token>
   "ok": true,
 
   "data": {
-    "key_id": 15,
+    "keyId": 15,
     "valid": true,
     "permissions": {
-      "spot_trading": true,
-      "futures_trading": true,
-      "margin_trading": false,
+      "spotTrading": true,
+      "futuresTrading": true,
+      "marginTrading": false,
       "withdraw": false
     },
     "restrictions": {
-      "ip_restricted": true,
-      "allowed_ips": ["123.45.67.89"]
+      "ipRestricted": true,
+      "allowedIps": ["123.45.67.89"]
     },
-    "verified_at": "2026-01-22T10:30:00Z"
+    "verifiedAt": "2026-01-22T10:30:00Z"
   },
-  "request_id": "req-verify-key",
+  "requestId": "req-verify-key",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -1052,7 +1052,7 @@ GET /logs?page=1&limit=20&status=SUCCESS&ticker=BTCUSDT&from=2026-01-01
       "total": 152
     }
   },
-  "request_id": "req-logs",
+  "requestId": "req-logs",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -1101,8 +1101,8 @@ Authorization: Bearer <token>
       }
     },
     "entryJson": {
-      "order_id": "12345678",
-      "client_order_id": "WH_U1_SIG1737360000000_ENTRY",
+      "orderId": "12345678",
+      "clientOrderId": "WH_U1_SIG1737360000000_ENTRY",
       "symbol": "BTCUSDT",
       "side": "BUY",
       "type": "MARKET",
@@ -1262,14 +1262,14 @@ GET /trade/balances?exchange=binance&market=futures_um&assets=USDT,USDC
 
 ## 7. Webhook
 
-### 7.1 Webhook Builder 옵션 조회
+### 7.0 Provider 목록 조회 (NEW)
 
 **✅ 구현 완료** - `src/modules/webhook-builder/webhook-builder.controller.ts`
 
-프론트엔드 Webhook Builder Select 컴포넌트에서 사용할 옵션 목록을 반환합니다.
+지원하는 Provider 목록을 조회합니다.
 
 ```http
-GET /webhook-builder/options
+GET /webhook-builder/providers
 ```
 
 > [!NOTE]
@@ -1280,13 +1280,52 @@ GET /webhook-builder/options
 ```json
 {
   "ok": true,
+  "data": [
+    { "value": "binance", "label": "Binance (바이낸스)" },
+    { "value": "discord", "label": "Discord (디스코드)" },
+    { "value": "kis", "label": "KIS (한국투자증권)" }
+  ],
+  "requestId": "req-providers",
+  "timestamp": "2026-01-26T08:00:00.000Z"
+}
+```
 
+---
+
+### 7.1 Webhook Builder 옵션 조회 (Updated)
+
+**✅ 구현 완료** - `src/modules/webhook-builder/webhook-builder.controller.ts`
+
+프론트엔드 Webhook Builder Select 컴포넌트에서 사용할 옵션 목록을 반환합니다.
+
+```http
+GET /webhook-builder/options?provider={provider}
+```
+
+**Query Parameters**
+
+| 파라미터   | 타입   | 필수 | 기본값  | 설명                          |
+| ---------- | ------ | ---- | ------- | ----------------------------- |
+| `provider` | string | No   | binance | Provider (binance, discord, kis) |
+
+> [!NOTE]
+> Authorization 헤더 불필요 (Public endpoint)
+
+**Response 200 (Binance - 기본)**
+
+```json
+{
+  "ok": true,
   "data": {
-    "exchanges": [{ "value": "binance", "label": "Binance" }],
+    "providers": [
+      { "value": "binance", "label": "Binance (바이낸스)" },
+      { "value": "discord", "label": "Discord (디스코드)" },
+      { "value": "kis", "label": "KIS (한국투자증권)" }
+    ],
+    "provider": "binance",
     "markets": [
       { "value": "spot", "label": "Spot" },
-      { "value": "futures_um", "label": "Futures USDT-M" },
-      { "value": "futures_cm", "label": "Futures Coin-M" }
+      { "value": "futures_um", "label": "Futures USDT-M" }
     ],
     "actions": [
       { "value": "open_long", "label": "Open Long (롱 진입)" },
@@ -1303,27 +1342,76 @@ GET /webhook-builder/options
       { "value": "percent", "label": "Percent (% 비율)" },
       { "value": "fixed", "label": "Fixed (고정 수량)" }
     ],
-    "tpSlTypes": [
-      { "value": "percent", "label": "Percent (진입가 대비 %)" },
-      { "value": "price", "label": "Price (지정가)" }
-    ],
-    "positionModes": [
-      { "value": "ONE_WAY", "label": "One-way Mode (단방향)" },
-      { "value": "HEDGE", "label": "Hedge Mode (헤지)" }
-    ],
-    "quoteAssets": [
-      { "value": "USDT", "label": "USDT (Tether)" },
-      { "value": "USDC", "label": "USDC (USD Coin)" }
-    ],
     "defaults": {
       "leverage": { "min": 1, "max": 125, "default": 10 },
-      "qtyPercent": { "min": 1, "max": 100, "default": 50 },
-      "stopLossPercent": { "min": 0.1, "max": 50, "default": 2 },
-      "takeProfitPercent": { "min": 0.1, "max": 100, "default": 5 }
+      "qtyPercent": { "min": 1, "max": 100, "default": 50 }
     }
   },
-  "request_id": "req-webhook-builder",
-  "timestamp": "2026-01-24T05:30:36.950Z"
+  "requestId": "req-webhook-builder",
+  "timestamp": "2026-01-26T08:00:00.000Z"
+}
+```
+
+**Response 200 (Discord)**
+
+```http
+GET /webhook-builder/options?provider=discord
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "provider": "discord",
+    "messageTypes": [
+      { "value": "embed", "label": "Embed (리치 메시지)" },
+      { "value": "plain", "label": "Plain Text (일반 텍스트)" }
+    ],
+    "mentionTypes": [
+      { "value": "none", "label": "None (멘션 없음)" },
+      { "value": "here", "label": "@here (온라인 유저)" },
+      { "value": "everyone", "label": "@everyone (모든 유저)" },
+      { "value": "role", "label": "Role (특정 역할)" }
+    ],
+    "quoteAssets": [
+      { "value": "0x00FF00", "label": "🟢 Green (성공/롱)" },
+      { "value": "0xFF0000", "label": "🔴 Red (실패/숏)" },
+      { "value": "0x3498DB", "label": "🔵 Blue (정보)" }
+    ]
+  }
+}
+```
+
+**Response 200 (KIS - 한국투자증권)**
+
+```http
+GET /webhook-builder/options?provider=kis
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "provider": "kis",
+    "markets": [
+      { "value": "kospi", "label": "KOSPI (유가증권)" },
+      { "value": "kosdaq", "label": "KOSDAQ (코스닥)" },
+      { "value": "nasdaq", "label": "NASDAQ (나스닥)" },
+      { "value": "nyse", "label": "NYSE (뉴욕증권거래소)" }
+    ],
+    "actions": [
+      { "value": "buy", "label": "Buy (매수)" },
+      { "value": "sell", "label": "Sell (매도)" }
+    ],
+    "orderTypes": [
+      { "value": "01", "label": "시장가" },
+      { "value": "00", "label": "지정가" }
+    ],
+    "accountTypes": [
+      { "value": "real", "label": "Real (실전투자)" },
+      { "value": "virtual", "label": "Virtual (모의투자)" }
+    ]
+  }
 }
 ```
 
@@ -1488,14 +1576,14 @@ Content-Type: application/json
         ]
       },
       "options": {
-        "signal_id": "{{timenow}}",
+        "signalId": "{{timenow}}",
         "leverage": 10,
         "position_mode": "ONE_WAY",
         "reduce_only": false
       }
     }
   },
-  "request_id": "req-webhook-builder",
+  "requestId": "req-webhook-builder",
   "timestamp": "2026-01-24T05:30:36.950Z"
 }
 ```
@@ -1536,7 +1624,7 @@ Content-Type: application/json
   "options": {
     "leverage": 10,
     "position_mode": "ONE_WAY",
-    "signal_id": "{{timenow}}"
+    "signalId": "{{timenow}}"
   }
 }
 ```
@@ -1548,8 +1636,8 @@ Content-Type: application/json
   "ok": true,
   "data": {
     "status": "queued",
-    "job_id": "550e8400-e29b-41d4-a716-446655440000",
-    "trace_id": "sqs_message_id_here"
+    "jobId": "550e8400-e29b-41d4-a716-446655440000",
+    "traceId": "sqs_message_id_here"
   }
 }
 ```
@@ -1603,13 +1691,13 @@ Authorization: Bearer <token>
 {
   "ok": true,
   "data": {
-    "signal_id": "1737360000000",
+    "signalId": "1737360000000",
     "status": "DONE",
     "provider": "binance",
     "market": "futures_um",
     "ticker": "BTCUSDT",
-    "created_at": "2026-01-22T10:00:00Z",
-    "updated_at": "2026-01-22T10:00:15Z"
+    "createdAt": "2026-01-22T10:00:00Z",
+    "updatedAt": "2026-01-22T10:00:15Z"
   }
 }
 ```
@@ -1776,7 +1864,7 @@ POST /v1/auth/magic-link/request
 Content-Type: application/json
 {
   "email": "user@example.com",
-  "redirect_url": "https://yourapp.com/auth/callback"
+  "redirectUrl": "https://yourapp.com/auth/callback"
 }
 
 # 2. 이메일에서 받은 코드로 인증
@@ -1785,7 +1873,7 @@ Content-Type: application/json
 {
   "code": "123456"
 }
-# → access_token, refresh_token 받기
+# → accessToken, refreshToken 받기
 ```
 
 #### OAuth 방식 (Google/Kakao)
@@ -1801,16 +1889,16 @@ POST /v1/auth/verify
 Content-Type: application/json
 {
   "code": "abc123xyz",
-  "redirect_uri": "https://yourapp.com/auth/callback"
+  "redirectUri": "https://yourapp.com/auth/callback"
 }
-# → access_token, refresh_token 받기
+# → accessToken, refreshToken 받기
 ```
 
 ### 2. 거래소 API 키 등록
 
 ```bash
 POST /users/keys
-Authorization: Bearer <access_token>
+Authorization: Bearer <accessToken>
 Content-Type: application/json
 {
   "exchange": "binance",
@@ -1832,11 +1920,11 @@ Content-Type: application/json
 
 ```bash
 GET /v1/me
-Authorization: Bearer <access_token>
+Authorization: Bearer <accessToken>
 # → 사용자 정보 확인
 
 GET /users/webhook?provider=binance
-Authorization: Bearer <access_token>
+Authorization: Bearer <accessToken>
 # → webhook_url 확인하여 TradingView에 등록
 ```
 
@@ -1850,7 +1938,7 @@ Authorization: Bearer <access_token>
 
 ```bash
 GET /logs?page=1&limit=20
-Authorization: Bearer <access_token>
+Authorization: Bearer <accessToken>
 ```
 
 ---
@@ -1924,6 +2012,46 @@ const result = unwrapResponse(response.data); // response.data.data 추출
 - ✅ 7.3 Webhook 수신 엔드포인트
 - ✅ 7.4 Webhook 요청 상태 조회
 
-**문서 버전**: v1.1  
-**최종 업데이트**: 2026-01-24  
-**다음 업데이트 예정**: 전체 API 엔드포인트 응답 구조 통일
+---
+
+### 2026-01-26
+
+**Multi-Provider Webhook Builder 지원**
+
+#### 변경 내용:
+
+1. **Provider 목록 조회 추가** (섹션 7.0)
+   - `GET /webhook-builder/providers`
+2. **Options API에 `?provider=` 쿼리 파라미터 추가** (섹션 7.1)
+   - Binance (기본), Discord, KIS (한국투자증권) 지원
+3. **Generate API에 `?provider=` 쿼리 파라미터 추가** (섹션 7.2)
+4. **Provider별 응답 예시 추가**
+   - Discord: messageTypes, mentionTypes, embed colors
+   - KIS: markets (kospi, nasdaq), orderTypes, accountTypes
+
+#### 영향받는 섹션:
+
+- ✅ 7.0 Provider 목록 조회 (NEW)
+- ✅ 7.1 Webhook Builder 옵션 조회 (Updated)
+- ✅ 7.2 TradingView 웹훅 메시지 생성 (Updated)
+
+#### 프론트엔드 대응:
+
+```typescript
+// Provider 선택에 따른 옵션 조회
+const provider = "discord"; // or 'binance', 'kis'
+const { data } = await apiClient.get(`/webhook-builder/options?provider=${provider}`);
+
+// Provider별 UI 분기
+if (data.messageTypes) {
+  // Discord Options UI
+} else if (data.orderTypes) {
+  // KIS Options UI  
+} else {
+  // Binance Options UI (default)
+}
+```
+
+**문서 버전**: v1.2  
+**최종 업데이트**: 2026-01-26  
+**다음 업데이트 예정**: Symbol Admin API 문서 추가
