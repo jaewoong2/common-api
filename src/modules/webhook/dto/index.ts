@@ -5,6 +5,7 @@ export {
   StrategyDto,
   OptionsDto,
 } from "./payload.dto";
+export { DiscordPayloadDto } from "./discord-payload.dto";
 export { WebhookResponseDto, WebhookErrorDto } from "./response.dto";
 export {
   WebhookRequestDto,

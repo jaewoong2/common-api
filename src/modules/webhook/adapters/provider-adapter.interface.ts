@@ -97,7 +97,7 @@ export interface BasePayload {
  * Provider Adapter Interface
  * @description 거래소/증권사별 주문 실행 어댑터 인터페이스
  */
-export interface ProviderAdapter {
+export interface ProviderAdapter<T = BasePayload> {
   /**
    * Provider 식별자
    */
@@ -108,7 +108,7 @@ export interface ProviderAdapter {
    * @param payload - 원본 페이로드
    * @throws ValidationError if invalid
    */
-  validatePayload(payload: BasePayload): Promise<void>;
+  validatePayload(payload: T): Promise<void>;
 
   /**
    * Payload → Provider API Request 변환
@@ -121,7 +121,7 @@ export interface ProviderAdapter {
   transformRequest(
     userId: string,
     signalId: string,
-    payload: BasePayload,
+    payload: T,
     credentials: ExchangeCredentials,
   ): Promise<ProviderRequest>;
 

@@ -10,7 +10,7 @@ import { UserRepository } from "../../user/repositories/user.repository";
 import { WebhookRequestRepository } from "../repositories";
 import { JobService } from "../../job/job.service";
 import { UnifiedJobMessageDto } from "../../job/dto/unified-job-message.dto";
-import { BinancePayloadDto } from "../dto";
+import { BinancePayloadDto, DiscordPayloadDto } from "../dto";
 import { WebhookStatus } from "../../../common/enums";
 import { ExecutionType } from "../../../common/enums";
 import { randomUUID } from "crypto";
@@ -93,7 +93,7 @@ export class WebhookReceiverService {
   async handleWebhook(
     provider: string,
     authToken: string,
-    payload: BinancePayloadDto,
+    payload: BinancePayloadDto | DiscordPayloadDto,
   ): Promise<{
     status: "queued" | "already_processed";
     job_id?: string;
@@ -105,14 +105,15 @@ export class WebhookReceiverService {
       throw new UnauthorizedException("Invalid auth token");
     }
 
-    // 2. provider 검증 (payload.exchange와 일치 여부)
+    // 2. provider 검증 (payload.exchange가 존재하는 경우에만)
     if (payload.exchange && payload.exchange !== provider) {
       throw new BadRequestException(
         `Provider mismatch: path=${provider}, payload=${payload.exchange}`,
       );
     }
 
-    const signalId = payload.options.signal_id;
+    // signal_id가 없는 경우 (Discord 등) UUID 생성
+    const signalId = payload.options?.signal_id || randomUUID();
     const userId = user.id;
 
     // 3. 중복 체크 (signal_id)
@@ -182,7 +183,7 @@ export class WebhookReceiverService {
     userId: string,
     provider: string,
     signalId: string,
-    payload: BinancePayloadDto,
+    payload: BinancePayloadDto | DiscordPayloadDto,
     jobId: string,
   ): UnifiedJobMessageDto {
     const bodyPayload = {

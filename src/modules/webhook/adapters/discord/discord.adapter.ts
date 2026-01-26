@@ -7,6 +7,7 @@ import {
   ExchangeCredentials,
   ExecutionResult,
 } from "../provider-adapter.interface";
+import { DiscordPayloadDto } from "../../dto/discord-payload.dto";
 import { TradePosition, TradeBalance } from "../../../../common/types";
 import { WebhookAction } from "../../../../common/enums";
 
@@ -39,35 +40,42 @@ const ACTION_EMOJIS: Record<string, string> = {
  * @description Discord Webhook으로 트레이딩 알림 전송
  */
 @Injectable()
-export class DiscordAdapter implements ProviderAdapter {
+export class DiscordAdapter implements ProviderAdapter<DiscordPayloadDto> {
   readonly provider = "discord";
   private readonly logger = new Logger(DiscordAdapter.name);
 
-  async validatePayload(payload: BasePayload): Promise<void> {
-    if (!payload.ticker) {
-      throw new BadRequestException(
-        "Ticker is required for Discord notification",
-      );
+  /**
+   * Validate payload based on message_type
+   */
+  async validatePayload(payload: DiscordPayloadDto): Promise<void> {
+    // Embed mode: require embed object
+    if (payload.message_type === "embed") {
+      if (!payload.embed && !payload.content) {
+        throw new BadRequestException(
+          "For embed message_type, either 'embed' or 'content' is required",
+        );
+      }
+      return;
     }
-    if (!payload.action) {
-      throw new BadRequestException(
-        "Action is required for Discord notification",
-      );
-    }
+
+    // Trading mode: existing permissive validation (no strict requirements)
+    // Fields are optional to support flexible usage
   }
 
   async transformRequest(
     userId: string,
     signalId: string,
-    payload: BasePayload,
+    payload: DiscordPayloadDto,
     credentials: ExchangeCredentials,
   ): Promise<ProviderRequest> {
-    // Discord adapter는 metadata에 원본 payload 저장
+    // Store message_type and embed data in metadata for execute
+    const messageType = payload.message_type || "trading";
+
     return {
       userId,
       signalId,
-      symbol: payload.ticker,
-      side: payload.action.includes("LONG") ? "BUY" : "SELL",
+      symbol: payload.ticker ?? "Symbol Is Empty",
+      side: payload.action?.includes("LONG") ? "BUY" : "SELL",
       orderType: payload.entry?.type || "market",
       quantity: payload.qty?.value?.toString() || "0",
       price: payload.entry?.price?.toString(),
@@ -77,11 +85,15 @@ export class DiscordAdapter implements ProviderAdapter {
       clientOrderId: signalId,
       positionMode: payload.options?.position_mode,
       reduceOnly: payload.options?.reduce_only,
-      // 원본 payload를 metadata에 저장하여 execute에서 활용
+      // Store all data in metadata for execute
       metadata: {
+        messageType,
+        embed: payload.embed,
+        content: payload.content,
+        // Trading mode data
         payload,
-        action: payload.action,
-        strategy: payload.strategy,
+        action: payload?.action || "",
+        strategy: payload?.strategy || {},
         qtyType: payload.qty?.type,
         qtyValue: payload.qty?.value,
       },
@@ -102,16 +114,31 @@ export class DiscordAdapter implements ProviderAdapter {
       };
     }
 
+    const metadata = request.metadata || {};
+    const messageType = metadata.messageType || "trading";
+
     try {
-      const embed = this.createEmbed(request);
+      let discordPayload: { embeds?: any[]; content?: string };
 
-      await axios.post(webhookUrl, {
-        embeds: [embed],
-      });
+      if (messageType === "embed") {
+        // Direct embed mode: use user-provided embed
+        discordPayload = {
+          content: metadata.content as string | undefined,
+          embeds: metadata.embed ? [metadata.embed] : undefined,
+        };
+        this.logger.log(
+          `Discord direct embed sent: signalId=${request.signalId}`,
+        );
+      } else {
+        // Trading mode: generate embed from trading data
+        const embed = this.createEmbed(request);
+        discordPayload = { embeds: [embed] };
+        this.logger.log(
+          `Discord trading embed sent: symbol=${request.symbol}, action=${metadata.action}`,
+        );
+      }
 
-      this.logger.log(
-        `Discord webhook sent: symbol=${request.symbol}, action=${request.metadata?.action}`,
-      );
+      await axios.post(webhookUrl, discordPayload);
 
       return {
         success: true,
@@ -146,8 +173,8 @@ export class DiscordAdapter implements ProviderAdapter {
   ) {
     const metadata = request.metadata || {};
     const action = (metadata.action as string) || "";
-    const payload = (metadata.payload as BasePayload) || {};
-    const strategy = metadata.strategy as BasePayload["strategy"];
+    const payload = (metadata.payload as DiscordPayloadDto) || {};
+    const strategy = metadata.strategy as DiscordPayloadDto["strategy"];
 
     // Action별 색상과 Emoji 결정
     const { color, emoji, title } = this.getActionStyles(
@@ -253,7 +280,7 @@ export class DiscordAdapter implements ProviderAdapter {
   private buildFields(
     request: ProviderRequest,
     metadata: Record<string, unknown>,
-    strategy?: BasePayload["strategy"],
+    strategy?: DiscordPayloadDto["strategy"],
   ): Array<{ name: string; value: string; inline: boolean }> {
     const fields: Array<{ name: string; value: string; inline: boolean }> = [];
 

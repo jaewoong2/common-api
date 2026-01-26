@@ -9,6 +9,7 @@ import {
   ProviderAdapterRegistry,
   BasePayload,
   ExecutionResult,
+  ProviderAdapter,
 } from "../adapters";
 import { ExchangeKeyService } from "../../exchange-keys";
 import { WebhookStatus, TradeStatus } from "../../../common/enums";
@@ -19,6 +20,8 @@ import {
   EntryOrderDto,
   ExitOrdersDto,
   ExecutionErrorDto,
+  DiscordPayloadDto,
+  BinancePayloadDto,
 } from "../dto";
 
 /**
@@ -30,7 +33,10 @@ export interface ExecuteRequestDto {
   user_id: string;
   signal_id: string;
   provider: string;
-  request: BasePayload & { exchange?: string; market?: string };
+  request: (BasePayload | DiscordPayloadDto | BinancePayloadDto) & {
+    exchange?: string;
+    market?: string;
+  };
 }
 
 /**
@@ -128,7 +134,10 @@ export class WebhookExecutorService {
     userId: string,
     signalId: string,
     provider: string,
-    webhookPayload: BasePayload & { exchange?: string; market?: string },
+    webhookPayload: (BasePayload | DiscordPayloadDto | BinancePayloadDto) & {
+      exchange?: string;
+      market?: string;
+    },
   ): Promise<WebhookExecutionResultDto> {
     // 1. webhook_requests status → PROCESSING
     const webhookRequest =
@@ -154,7 +163,9 @@ export class WebhookExecutorService {
     );
 
     // 3. Provider Adapter 조회
-    const adapter = this.adapterRegistry.getAdapter(provider);
+    const adapter = this.adapterRegistry.getAdapter(
+      provider,
+    ) as ProviderAdapter<any>;
 
     // 4. Payload 검증 (Binance-specific validation만)
     await adapter.validatePayload(webhookPayload);
@@ -201,7 +212,10 @@ export class WebhookExecutorService {
     userId: string,
     signalId: string,
     provider: string,
-    webhookPayload: BasePayload & { exchange?: string; market?: string },
+    webhookPayload: (BasePayload | DiscordPayloadDto | BinancePayloadDto) & {
+      exchange?: string;
+      market?: string;
+    },
     error: Error & { response?: { data?: unknown } },
   ): Promise<void> {
     try {
@@ -254,7 +268,10 @@ export class WebhookExecutorService {
     userId: string,
     signalId: string,
     provider: string,
-    payload: BasePayload & { exchange?: string; market?: string },
+    payload: (BasePayload | DiscordPayloadDto | BinancePayloadDto) & {
+      exchange?: string;
+      market?: string;
+    },
     result: ExecutionResult,
   ): Promise<void> {
     const tradeLogRepo = manager.getRepository(TradeLogEntity);
@@ -263,9 +280,9 @@ export class WebhookExecutorService {
       signalId,
       provider,
       exchange: payload.exchange || provider,
-      market: payload.market || "futures_um",
-      ticker: payload.ticker,
-      action: payload.action,
+      market: payload.market || "",
+      ticker: payload.ticker || "",
+      action: payload.action || "",
       status: result.status as TradeStatus,
       entryJson: result.entryJson as JsonObject | null,
       exitJson: result.exitJson as JsonObject | null,
